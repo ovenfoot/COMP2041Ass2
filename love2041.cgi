@@ -13,14 +13,34 @@ my %udata = generateProfileData("AwesomeSurfer30");
 
 foreach $field (keys %udata)
 {
+
 	print "$field:\n $udata{$field}"
 }
 
 generateProfileData("poop");
-sub generateHtml
+generateUserHtml("AwesomeSurfer30");
+sub generateUserHtml
 {
+	my ($uname) = @_;
+
 	print header, start_html('LOVE2041 MOTHERFUCKERS');
 	warningsToBrowser(1);
+
+	my %udata = generateProfileData($uname);
+	if (! $udata{"found"})
+	{
+		print "fuck\n";
+		return (-1);
+	}
+	print h1 "$uname";
+
+	foreach $field (keys %udata)
+	{
+		print p "$field";
+		print p "$udata{$field}"
+	}
+
+	
 
 }
 
@@ -41,18 +61,20 @@ sub generateProfileData
 	
 	if (!(-R $profileFile))
 	{
-		print "user $uname not  found!\n";
-		return (-1);
+		#print "user $uname not  found!\n";
+		$userData{"found"} = 0;
+		return %userData;
 	}
-	print "Getting $uname from  $ufolder\n";
+	#print "Getting $uname from  $ufolder\n";
 
 	open (pFile, "< $profileFile");
-
+	$userData{"found"} = 1;
 	foreach $line (<pFile>)
 	{
 		chomp $line;
 		
 		@tabspaces = $line =~ m/^\t+/g;
+		
 		if ($#tabspaces<0) 
 		{
 			#tabspaces less than one means a field has been added
@@ -62,9 +84,11 @@ sub generateProfileData
 		}
 		elsif (!($currField eq ""))
 		{
+			#extra check to make sure that currfield is not empty
 			#tabpsaces greater than 1 indicates a data field
 			$userData{$currField} = $userData{$currField}.$line."\n"
 		}
+
 	}
 
 	
