@@ -30,8 +30,8 @@ if ($ENV{'QUERY_STRING'} eq "" )
 	
 	if(defined(param ("uname")) && defined(param("pass")) )
 	{
-
-		if(authenticate(param("uname"), param("pass")))
+		#debugPrint("yass");
+		if(!authenticate())
 		{
 			$authenticated = 1;
 			generateUserListHtml();
@@ -63,9 +63,8 @@ else
 
 sub authenticate
 {
-	my @inputs = @_;
-	my $uname = $inputs[0];
-	my $password = $inputs[1];
+	my $uname = param('uname');
+	my $password = param('pass');
 	my %udata = generateProfileData($uname);
 
 	if (!$udata{"found"})
@@ -125,16 +124,16 @@ sub generateHomePage
 	printLink($homeUrl."?|allusers", "Browse All Users");
 	print "</h1>";
 
-	print start_form;
-	print "Username: ", p textfield('uname');
-	print "Password: ", p textfield('pass');
 
-	print submit;
-	print hidden("uname");
-	print hidden("pass");
+	print start_form,
+        'Enter login: ', textfield('uname'), "<br>\n",
+        ' Enter password: ', password_field('pass'),, "<br>\n",
+        submit('Login'),
+        end_form,
+        end_html;
+		
 
-	print end_form;
-	endPage();
+	#endPage();
 }
 sub generateUserListHtml
 {
