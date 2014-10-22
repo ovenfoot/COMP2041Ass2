@@ -47,7 +47,15 @@ sub generateUserHtml
 
 	#print image
 	$imagePath = $udata{"profileImage"};
-	print "<img src=$imagePath><p>\n";
+	$imagePath = "/tmp_amd/adams/export/adams/2/tngu211/public_html/profile.jpg";
+
+	select(STDOUT); $| = 1;   #unbuffer STDOUT
+	print "Content-type: image/jpeg\n\n";
+
+	open (IMAGE, '<', $imagePath);
+	print <IMAGE>;
+	close IMAGE;
+
 	foreach my $field (keys %udata)
 	{
 		
