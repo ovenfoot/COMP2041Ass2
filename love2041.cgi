@@ -6,6 +6,7 @@ use CGI qw/:all/;
 use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
 use File::Copy;
 
+$cgiFolder = "http://cgi.cse.unsw.edu.au/~tngu211/students/";
 $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
 
@@ -47,14 +48,7 @@ sub generateUserHtml
 
 	#print image
 	$imagePath = $udata{"profileImage"};
-	$imagePath = "/tmp_amd/adams/export/adams/2/tngu211/public_html/profile.jpg";
-
-	select(STDOUT); $| = 1;   #unbuffer STDOUT
-	print "Content-type: image/jpeg\n\n";
-
-	open (IMAGE, '<', $imagePath);
-	print <IMAGE>;
-	close IMAGE;
+	print "<img src=$imagePath><p>\n";
 
 	foreach my $field (keys %udata)
 	{
@@ -86,6 +80,7 @@ sub generateProfileData
 {
 	my ($uname) = @_;
 	my $ufolder = $dataFolder.$uname."/";
+	my $ucgiFolder = $cgiFolder.$uname."/";
 	my $profileFile = $ufolder.$defaultProfileFilename;
 	my @tabspaces = ();
 	my %userData = ();
@@ -126,7 +121,7 @@ sub generateProfileData
 
 	}
 
-	$userData{"profileImage"} = $ufolder."profile.jpg";
+	$userData{"profileImage"} = $ucgiFolder."profile.jpg";
 
 	
 
