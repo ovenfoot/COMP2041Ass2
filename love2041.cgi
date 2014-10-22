@@ -9,15 +9,15 @@ use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
 $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
 
-my %udata = generateProfileData("AwesomeSurfer30");
+# my %udata = generateProfileData("AwesomeSurfer30");
 
-foreach $field (keys %udata)
-{
+# foreach $field (keys %udata)
+# {
 
-	#print "$field:\n $udata{$field}"
-}
+# 	print "$field:\n $udata{$field}"
+# }
 
-generateProfileData("poop");
+# generateProfileData("poop");
 generateUserHtml("AwesomeSurfer30");
 sub generateUserHtml
 {
