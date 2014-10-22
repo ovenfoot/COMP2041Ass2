@@ -14,7 +14,7 @@ my %udata = generateProfileData("AwesomeSurfer30");
 foreach $field (keys %udata)
 {
 
-	print "$field:\n $udata{$field}"
+	#print "$field:\n $udata{$field}"
 }
 
 generateProfileData("poop");
@@ -39,6 +39,7 @@ sub generateUserHtml
 		print p "$field";
 		print p "$udata{$field}"
 	}
+	print end_html;
 
 	
 
