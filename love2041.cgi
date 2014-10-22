@@ -4,11 +4,20 @@
 use Cwd;
 use CGI qw/:all/;
 use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
-
+use File::Copy;
 
 $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
 
+#create a hash of private fields
+%privateFields = ();
+$privateFields{"uname"} = 1;
+$privateFields{"password"} = 1;
+$privateFields{"email"} = 1;
+$privateFields{"found"} = 1;
+$privateFields{"courses"} = 1;
+$privateFields{"name"} = 1;
+$privateFields{"profileImage"} = 1;
 # my %udata = generateProfileData("AwesomeSurfer30");
 
 # foreach $field (keys %udata)
@@ -22,11 +31,13 @@ generateUserHtml("AwesomeSurfer30");
 sub generateUserHtml
 {
 	my ($uname) = @_;
+	my @currData = ();
+	my %udata = ();
 
 	print header, start_html('LOVE2041 MOTHERFUCKERS');
 	warningsToBrowser(1);
 
-	my %udata = generateProfileData($uname);
+	%udata = generateProfileData($uname);
 	if (! $udata{"found"})
 	{
 		print "fuck\n";
@@ -34,10 +45,25 @@ sub generateUserHtml
 	}
 	print h1 "$uname";
 
-	foreach $field (keys %udata)
+	#print image
+	$imagePath = $udata{"profileImage"};
+	print "<img src=$imagePath><p>\n";
+	foreach my $field (keys %udata)
 	{
-		print p "$field";
-		print p "$udata{$field}"
+		
+		if(!exists ($privateFields{$field}))
+		{
+			#check if the field is not private, print it
+			my $fieldToPrint = $field;
+			$fieldToPrint =~ s/\_/ /g;
+			print h2 "$fieldToPrint";
+			@currData = split ('\n',$udata{$field});
+			foreach my $entry (@currData)
+			{
+				print p "$entry";
+			}
+		}
+		#print p "$udata{$field}";
 	}
 	print end_html;
 
@@ -91,6 +117,8 @@ sub generateProfileData
 		}
 
 	}
+
+	$userData{"profileImage"} = $ufolder."profile.jpg";
 
 	
 
