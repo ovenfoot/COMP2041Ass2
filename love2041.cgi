@@ -9,39 +9,190 @@ use File::Copy;
 $cgiFolder = "http://cgi.cse.unsw.edu.au/~tngu211/students/";
 $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
+$currProfile = "";
+$homeUrl = "http://cgi.cse.unsw.edu.au/~tngu211/love2041.cgi";
+$authenticated = 0;
 
 #create a hash of private fields
 %privateFields = ();
 $privateFields{"uname"} = 1;
-$privateFields{"password"} = 1;
+#$privateFields{"password"} = 1;
 $privateFields{"email"} = 1;
 $privateFields{"found"} = 1;
 $privateFields{"courses"} = 1;
 $privateFields{"name"} = 1;
 $privateFields{"profileImage"} = 1;
-# my %udata = generateProfileData("AwesomeSurfer30");
+$privateFields{"username"} = 1;
 
-# foreach $field (keys %udata)
-# {
 
-# 	print "$field:\n $udata{$field}"
-# }
+if ($ENV{'QUERY_STRING'} eq "" )
+{
+	
+	if(defined(param ("uname")) && defined(param("pass")) )
+	{
 
-# generateProfileData("poop");
-generateUserHtml("AwesomeSurfer30");
+		if(authenticate(param("uname"), param("pass")))
+		{
+			$authenticated = 1;
+			generateUserListHtml();
+		}
+		else
+		{
+			generateHomePage();
+			
+		}
+	}
+	else
+	{
+		generateHomePage();
+	}
+}
+elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
+{
+	#fornow assume command character is '|'
+	generateUserListHtml();
+}
+else
+{
+	$currProfile = $ENV{'QUERY_STRING'};
+	generateUserHtml($currProfile);
+}
+
+
+#generateUserHtml($currProfile);
+
+sub authenticate
+{
+	my @inputs = @_;
+	my $uname = $inputs[0];
+	my $password = $inputs[1];
+	my %udata = generateProfileData($uname);
+
+	if (!$udata{"found"})
+	{
+		return (-1);
+	}
+	my $actpass = $udata{"password"};
+	$actpass=~ s/\s*$//g;
+	$actpass =~ s/^\s*//g;
+
+	$password =~ s/\s*$//g;
+	if ($actpass eq $password)
+	{
+		param("actPass", $password);
+		param("upass", $udata{"password"});
+
+		return 0;
+	}
+	else
+	{
+		#return $password.$udata{"password"};
+		return (-2);
+	}
+}
+
+#prints all end html tags and generic hidden variables
+sub endPage
+{
+	#param("auth", $authenticated);
+	#print p $authenticated;
+	print hidden("auth");
+	print hidden ("uname");
+	print end_html;
+}
+
+
+#prints debug string to html
+sub debugPrint
+{
+	my ($debugString) = @_;
+	print header;
+	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
+								-bgcolor=>'CCFF33');
+
+	print p $debugString;
+	print end_html;
+
+}
+sub generateHomePage
+{
+	print header;
+	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
+								-bgcolor=>'CCFF33');
+
+	print h1 "Welcome to LOVE2041, the most ghetto piece of shit dating website ever";
+	print h1;
+	printLink($homeUrl."?|allusers", "Browse All Users");
+	print "</h1>";
+
+	print start_form;
+	print "Username: ", p textfield('uname');
+	print "Password: ", p textfield('pass');
+
+	print submit;
+	print hidden("uname");
+	print hidden("pass");
+
+	print end_form;
+	endPage();
+}
+sub generateUserListHtml
+{
+	print header;
+	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
+								-bgcolor=>'CCFF33');
+
+	my @users = getUserList();
+	warningsToBrowser(1);
+
+	print h1 "Browse Users";
+	#printLink($homeUrl, "RESTART");
+
+	#print p $ENV{'QUERY_STRING'};
+	foreach my $user (@users)
+	{
+
+		my $userURL = $homeUrl."?$user";
+		print p;
+		printLink($userURL, $user);
+		#print p $user;
+	}
+
+	endPage();
+}
+
+sub getUserList
+{
+	opendir my $userdirs, $dataFolder;
+	my @allUsers = readdir $userdirs;
+	my @returnUsers = ();
+	closedir $userdirs;
+	foreach my $user (@allUsers)
+	{
+		if (($user =~ /\w+.*/ ))
+		{
+			push @returnUsers, $user;
+		}
+	}
+	return @returnUsers;
+}
+
 sub generateUserHtml
 {
 	my ($uname) = @_;
 	my @currData = ();
 	my %udata = ();
+	print header;
 
-	print header, start_html('LOVE2041 MOTHERFUCKERS');
+	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
+								-bgcolor=>'FFFF33');
+	
 	warningsToBrowser(1);
 
 	%udata = generateProfileData($uname);
 	if (! $udata{"found"})
 	{
-		print "fuck\n";
+		print "fuck cannot find $uname\n";
 		return (-1);
 	}
 	print h1 "$uname";
@@ -56,8 +207,7 @@ sub generateUserHtml
 		if(!exists ($privateFields{$field}))
 		{
 			#check if the field is not private, print it
-			my $fieldToPrint = $field;
-			$fieldToPrint =~ s/\_/ /g;
+			$fieldToPrint = prettyInput ($field);
 			print h2 "$fieldToPrint";
 			@currData = split ('\n',$udata{$field});
 			foreach my $entry (@currData)
@@ -67,11 +217,14 @@ sub generateUserHtml
 		}
 		#print p "$udata{$field}";
 	}
+
+	print p;
+	print h1;
+	printLink($homeUrl, "Go home");
 	print end_html;
 
-	
-
 }
+
 
 #Grab profile data for given username.
 #takes 1 argument, username desired
@@ -116,7 +269,7 @@ sub generateProfileData
 		{
 			#extra check to make sure that currfield is not empty
 			#tabpsaces greater than 1 indicates a data field
-			$userData{$currField} = $userData{$currField}.$line."\n"
+			$userData{$currField} = prettyInput($userData{$currField}.$line."\n");
 		}
 
 	}
@@ -128,5 +281,47 @@ sub generateProfileData
 	close (pFile);
 
 	return %userData;
+
+}
+
+#captilises first letter of each word in a string
+#removes underscores where not necessary
+sub prettyInput
+{
+	my ($input) = @_;
+	my @words = split ('\_', $input);
+	my $output = "";
+
+	foreach my $word (@words)
+	{
+		$word = ucfirst ($word);
+	}
+
+	$output = join(' ', @words);
+	return $output;
+
+}
+
+sub printLink
+{
+	my @inputs = @_;
+	my $addr = $inputs[0];
+	my $text = "";
+	if(defined $inputs[1])
+	{
+		$text = $inputs[1];
+	}
+	else
+	{
+		$text = $addr;
+	}
+
+	print "<a ";
+	print 'href="';
+	print $addr;
+	print '" ';
+	print ">";
+	print $text;
+	print "</a>\n";
 
 }
