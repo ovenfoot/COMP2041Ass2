@@ -112,7 +112,8 @@ sub endPage
 	#print p $authenticated;
 	#print hidden("auth");
 	#print hidden ("uname");
-	print '</font>';
+	print '<!-- Designed by DreamTemplate. Please leave link unmodified. -->
+		<br><center><a href="http://www.dreamtemplate.com" title="Website Templates" target="_blank">Website templates</a></center>';
 	print end_html;
 }
 
@@ -142,8 +143,8 @@ sub generateHomePage
 
 
 	print start_form,
-        'Enter login: ', textfield('uname'), "<br>\n",
-        ' Enter password: ', password_field('pass'),, "<br>\n",
+        'Enter login: ', p textfield('uname'), p "<br>\n",
+        ' Enter password: ', p password_field('pass'),p "<br>\n",
         submit('Login'),
         end_form;
 		
@@ -233,7 +234,7 @@ sub generateUserHtml
 	print p;
 	print h1;
 	printLink($homeUrl, "Go home");
-	print end_html;
+	endPage();
 
 }
 

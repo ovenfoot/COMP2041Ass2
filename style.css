@@ -1,3 +1,7 @@
+/*
+	Style sheet taken from DreamTemplate.com with the caveat that Dreamtemplate be printed at the bottom of eahc page
+*/
+
 * {
 	padding:0;
 	margin:0;
@@ -6,7 +10,7 @@
 body {
 	color: #333333;
 	background-color:#FFFFFF;
-	font-family: Verdana, Arial, Helvetica, sans-serif;
+	font-family: Comic Sans MS, Comic Sans MS, Comic Sans MS, sans-serif;
 	font-size:0.83em;
 	margin:20px auto;
 	width:760px;
@@ -15,7 +19,7 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6, p, pre, blockquote, label, ul, ol, dl, 
-fieldset, address { margin:0.75em 0;}
+fieldset, address { margin:0.2em 0;}
 
 h1 {font-size:1.67em;}
 
