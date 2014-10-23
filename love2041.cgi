@@ -33,9 +33,8 @@ $privateFields{"path"} = 1;
 #beginPage();
 
 #checkSession();
-if ($ENV{'QUERY_STRING'} eq "" )
+if (checkSession() != 0)
 {
-	
 	if(defined(param ("uname")) && defined(param("pass")) )
 	{
 		#debugPrint("yass");
@@ -44,6 +43,7 @@ if ($ENV{'QUERY_STRING'} eq "" )
 		{
 			updateSession();
 			#debugPrint($globalSessionData{"authenticated"});
+			#debugPrint("poop");
 			generateUserListHtml();
 		}
 		else
@@ -53,13 +53,27 @@ if ($ENV{'QUERY_STRING'} eq "" )
 	}
 	else
 	{
+		
 		generateHomePage();
 	}
+}
+elsif ($ENV{'QUERY_STRING'} eq "" )
+{
+	generateUserListHtml();
 }
 elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 {
 	#fornow assume command character is '|'
-	generateUserListHtml();
+	my $query = $ENV{'QUERY_STRING'};
+	$query =~ s/\|//g;
+	if($query eq "allusers")
+	{
+		generateUserListHtml();
+	}
+	elsif($query eq "logout")
+	{
+		logout();
+	}
 }
 else
 {
@@ -110,24 +124,45 @@ sub beginPage
 	print "<link rel='stylesheet' type='text/css' href='style.css'>\n";
 
 	print p $ENV{"REMOTE_ADDR"};
-	checkSession();
+	#checkSession();
 
 }
 #prints all end html tags and generic hidden variables
 sub endPage
 {
-	#param("auth", $authenticated);
-	#print p $authenticated;
-	#print hidden("auth");
-	#print hidden ("uname");
 
-	#updateSession();
+	if ($globalSessionData{"authenticated"} == 0)
+	{
+		print h2;
+		print "<center>";
+		printLink($homeUrl."?|logout", "Log Out");
+		print "</center>";
+	}
 
+	print a;
 	print '<!-- Designed by DreamTemplate. Please leave link unmodified. -->
 		<br><center><a href="http://www.dreamtemplate.com" title="Website Templates" target="_blank">Website templates</a></center>';
 	print end_html;
 
 	
+}
+
+sub logout
+{
+	
+	my $ip = $ENV{"REMOTE_ADDR"};
+	$ip =~ s/\./\_/g;
+	my $sessionFile = "$ip.acc";
+
+	unlink $sessionFile;
+
+	beginPage();
+		print h2 "logged out";
+	print p;
+	printLink($homeUrl, "Go home");
+	endPage();
+
+
 }
 
 #prints debug string to html
@@ -176,7 +211,7 @@ sub generateUserListHtml
 	warningsToBrowser(1);
 
 	print h1 "Browse Users";
-	print p $globalSessionData{"authenticated"};
+	#print p $globalSessionData{"authenticated"};
 	#printLink($homeUrl, "RESTART");
 
 	#print p $ENV{'QUERY_STRING'};
@@ -341,7 +376,7 @@ sub createNewSession
 {
 	my $ip = $ENV{"REMOTE_ADDR"};
 	$ip =~ s/\./\_/g;
-	my $sessionFile = ".$ip";
+	my $sessionFile = "$ip.acc";
 	%globalSessionData = ();
 
 	$globalSessionData{"REMOTE_ADDR"} = $ip;
@@ -357,10 +392,11 @@ sub updateSession
 {
 	my $ip = $ENV{"REMOTE_ADDR"};
 	$ip =~ s/\./\_/g;
-	my $sessionFile = ".$ip";
+	my $sessionFile = "$ip.acc";
 
 	$globalSessionData{"last_access"} = localtime();
 	$globalSessionData{"timeout"}		= time()+$timeToLive;
+
 
 	open (sFile, "> $sessionFile");
 
@@ -369,14 +405,16 @@ sub updateSession
 		print sFile "$key,$globalSessionData{$key}\n";
 	}
 
-	close sFile
+	close sFile;
+
+	return $globalSessionData{"authenticated"};
 }
 
 sub checkSession
 {
 	my $ip = $ENV{"REMOTE_ADDR"};
 	$ip =~ s/\./\_/g;
-	my $sessionFile = ".$ip";
+	my $sessionFile = "$ip.acc";
 
 	open (sFile, "< $sessionFile");
 
@@ -388,11 +426,21 @@ sub checkSession
 
 	close sFile;
 
+	
+	if (!(-R $sessionFile))
+	{
+		return -1;
+	}
+
+	
+
 	my $timeToDie = $globalSessionData{"timeout"} - time();
 	my $authenticated = $globalSessionData{"authenticated"};
-	print p "last access", $globalSessionData{"last_access"};
-	print p "time to die: $timeToDie";
-	print p "authenticaed = $authenticated";
+	
+	return $authenticated;
+	# print p "last access", $globalSessionData{"last_access"};
+	# print p "time to die: $timeToDie";
+	# print p "authenticaed = $authenticated";
 }
 
 
