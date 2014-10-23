@@ -6,6 +6,10 @@ use CGI qw/:all/;
 use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
 use File::Copy;
 
+
+#######################################################################
+#		GLOBAL VAR INITIALISATION
+#######################################################################
 $cgiFolder = "http://cgi.cse.unsw.edu.au/~tngu211/students/";
 $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
@@ -15,7 +19,7 @@ $userListURL = "http://cgi.cse.unsw.edu.au/~tngu211/love2041.cgi?|allusers";
 $authenticated = 0;
 $timeToLive = 600; #seconds
 %globalSessionData = ();
-
+$profPerPage = 3;
 
 #create a hash of private fields
 %privateFields = ();
@@ -31,6 +35,11 @@ $privateFields{"otherPhotos"} = 1;
 $privateFields{"path"} = 1;
 
 #beginPage();
+
+
+#######################################################################
+#		MAIN EXECUTION STATE MACHINE
+#######################################################################
 
 #statemachine based on session
 #check session checks REMOTE_ADDR.acc file on server directory
@@ -50,7 +59,7 @@ if (checkSession() != 0)
 			#successful login. update session file
 			updateSession();;
 			#let them into the rest of the site
-			generateUserListHtml();
+			generateNUserList($profPerPage, 0);
 		}
 		else
 		{
@@ -67,7 +76,7 @@ if (checkSession() != 0)
 elsif ($ENV{'QUERY_STRING'} eq "" )
 {
 	#empty query string, show them the list of users
-	generateUserListHtml();
+	generateNUserList($profPerPage, 0);
 }
 elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 {
@@ -81,11 +90,16 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	#switch through the queries and decide what page to display
 	if($query eq "allusers")
 	{
-		generateUserListHtml();
+		generateAllUserListHtml();
 	}
 	elsif($query eq "logout")
 	{
 		logout();
+	}
+	elsif($query =~ /$|userlist(\d+)/)
+	{
+		my $nthPage = $1;
+		generateNUserList($profPerPage, $nthPage);
 	}
 
 
@@ -99,7 +113,12 @@ else
 }
 
 
-#generateUserHtml($currProfile);
+
+
+
+#######################################################################
+#		HERE BEGIN YONDER FUNCTIONS
+#######################################################################
 
 #take in username and password to check against database
 #return 0 for success, <0 for fail
@@ -158,7 +177,8 @@ sub endPage
 		print "<center>";
 		printLink($homeUrl."?|logout", "Log Out");
 		print "</center>";
-		print "</h2>"
+		print "</h2>";
+		updateSession();
 	}
 
 	print '<!-- Designed by DreamTemplate. Please leave link unmodified. -->
@@ -176,7 +196,7 @@ sub logout
 	my $sessionFile = "$ip.acc";
 
 	unlink $sessionFile;
-
+	$globalSessionData{"authenticated"} = -1;
 	beginPage();
 		print h2 "logged out";
 	print p;
@@ -223,7 +243,7 @@ sub generateLoginPage
 
 #generates list of all users currently in the pseudo-database
 #first argument is the 'failed login attempt' flag
-sub generateUserListHtml
+sub generateAllUserListHtml
 {
 	#print header;
 	beginPage();
@@ -244,6 +264,85 @@ sub generateUserListHtml
 	}
 
 	endPage();
+}
+
+#generates a list of n mini profiles to view
+#first argument is number of prifles per page
+#second argument is page requested to be viewed
+#eg (10,2) will so profiles 21-30;
+sub generateNUserList
+{
+
+	my @input = @_;
+	my $profilesPerPage = $input[0];
+	my $page = $input[1];
+	my $index = 0;
+	my @users = getUserList();
+
+
+	$totalPages = $#users/$profilesPerPage + 1;
+
+	my $nthUser = $page*$profilesPerPage + 1;
+
+	#if page is greater than total pages then mod the number
+	$page = $page % $totalPages;
+
+	beginPage();
+	print h1 "Browse Users";
+
+	#print out 3 users as a table
+	print center;
+	print '<table>';
+	print '<tr>';
+	#pick the next n users from the userlist and print pictures and username
+	for (my $i = 0; $i <$profilesPerPage; $i++)
+	{
+		$index = ($i + $nthUser) % $#users;
+		my $userURL = $homeUrl."?$users[$index]";
+
+		my %udata = generateProfileData($users[$index]);
+
+		print '<td>';
+		printImageLink($userURL, $udata{"profileImage"}, 70);
+		printLink($userURL, $users[$index]);
+		print '</td>';
+		print "\n";
+		
+
+	}
+	print '</tr>';
+	
+	print '<tr>';
+
+	#calculate next and previous page links
+	#if we hit the end, don't print the next/prev link
+	my $nextPage = ($page+1);
+	my $prevPage = ($page-1);
+	print td;
+	if($prevPage >= 0)
+	{
+		printLink($homeUrl."?|userlist$prevPage", "Prev Page");
+	}
+	for (my $i=1; $i<$profilesPerPage; $i++)
+	{
+		print td;
+		if ($i == int($profilesPerPage/2))
+		{
+			printLink($homeUrl."?|allusers", "List all profiles");
+		}
+	}
+	if ($nextPage < $totalPages)
+	{
+		printLink($homeUrl."?|userlist$nextPage", "Next Page");
+	}
+	print '</tr>';
+
+	print '</table>';
+	
+	#update session data about the last page person was browsing
+	$globalSessionData{"last_profile_browse"} = $page;
+	endPage();
+
 }
 
 #scans the /students/ folder and extracts out all the users
@@ -271,6 +370,7 @@ sub generateUserHtml
 	my @currData = ();
 	my %udata = ();
 	my @otherPhotos = ();
+	my $lastURL = ();
 	#print header;
 
 	beginPage();
@@ -321,8 +421,11 @@ sub generateUserHtml
 	
 
 	#end of page, go home links
+
+	#last page browsed stored in session
+	$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
 	print h1;
-	printLink($userListURL, "Back to User List");
+	printLink($lastURL, "Back to User List");
 
 	print p;
 	printLink($homeUrl, "Go home");
@@ -517,4 +620,33 @@ sub printLink
 	print ">";
 	print $text;
 	print "</a>\n";
+}
+
+#helper argument to print image link
+#first argument is desired address
+#second argument is picture to be displayed
+#third optional argument is scaling percentage
+sub printImageLink
+{
+	my @inputs = @_;
+	my $addr = $inputs[0];
+	my $imagePath = $inputs[1];
+
+	if (defined $inputs[2])
+	{
+		$scale = $inputs[2];
+	}
+	else
+	{
+		$scale = 100;
+	}
+
+	print "<a ";
+	print 'href="';
+	print $addr;
+	print '" ';
+	print ">";
+	print "<img src=$imagePath width = $scale\% height = $scale\% = s><p>\n";
+	print "</a>\n";
+
 }
