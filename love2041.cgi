@@ -7,6 +7,8 @@ use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
 use File::Copy;
 
 
+#FIXME: at the end of the browse user profiles page, prev page does not appear
+#FIXME: fully implement search
 #######################################################################
 #		GLOBAL VAR INITIALISATION
 #######################################################################
@@ -160,6 +162,8 @@ sub beginPage
 {
 	print header;
 	print start_html(-title=>'LOVE2041 MOTHERFUCKERS');
+
+	print param("unameSearch");
 
 	print "<link rel='stylesheet' type='text/css' href='style.css'>\n";
 
@@ -341,6 +345,8 @@ sub generateNUserList
 	
 	#update session data about the last page person was browsing
 	$globalSessionData{"last_profile_browse"} = $page;
+
+	printSearchForm();
 	endPage();
 
 }
@@ -530,30 +536,62 @@ sub updateSession
 	$ip =~ s/\./\_/g;
 	my $sessionFile = "$ip.acc";
 
+	#update last access and timeout values
 	$globalSessionData{"last_access"} = localtime();
-	$globalSessionData{"timeout"}		= time()+$timeToLive;
-
+	$globalSessionData{"timeout"} = time()+$timeToLive;
 
 	open (sFile, "> $sessionFile");
-
 	foreach my $key (keys %globalSessionData)
 	{
 		print sFile "$key,$globalSessionData{$key}\n";
 	}
-
 	close sFile;
-
-	return $globalSessionData{"authenticated"};
 }
 
 #load session data into memory
 #if authenticated and checks out, return 0
 #If no session data found, return error and force person to sign in
+#also checks and deletes obsolete session files
 sub checkSession
 {
+
 	my $ip = $ENV{"REMOTE_ADDR"};
 	$ip =~ s/\./\_/g;
 	my $sessionFile = "$ip.acc";
+	my %otherSession = ();
+
+	#first, scrub all previous sessions
+	#search through all access files
+	#delete anything with a timeout value less than current time
+	opendir my $DIR, './';
+	my @otherAccesses = grep{/.*.acc/} readdir $DIR;
+	closedir $DIR;
+	
+	foreach my $access (@otherAccesses)
+	{
+		open (otherFile, "< $access");
+
+		foreach my $line (<otherFile>)
+		{
+			@data = split(/\,/, $line);
+			$otherSession{$data[0]} = $data[1];
+		}
+		
+		close (oFile);
+
+		if ($otherSession{"timeout"} < time())
+		{
+			unlink $access
+		}
+	}
+
+
+	#now scan the session file relevant to this session
+	if (!(-R $sessionFile))
+	{
+		#session does not exist
+		return -1;
+	}
 
 	open (sFile, "< $sessionFile");
 
@@ -565,15 +603,14 @@ sub checkSession
 
 	close sFile;
 
-	
-	if (!(-R $sessionFile))
+	#check for timeout
+	if ($globalSessionData{"timeout"} < time())
 	{
+		#timeout value exceeded
 		return -1;
 	}
-	my $timeToDie = $globalSessionData{"timeout"} - time();
-	my $authenticated = $globalSessionData{"authenticated"};
 	
-	return $authenticated;
+	return $globalSessionData{"authenticated"};
 }
 
 
@@ -649,4 +686,16 @@ sub printImageLink
 	print "<img src=$imagePath width = $scale\% height = $scale\% = s><p>\n";
 	print "</a>\n";
 
+}
+
+#helper function to print the user search form 
+sub printSearchForm
+{
+	print start_form;
+    print 'Search For Profile: ', textfield('unameSearch');
+    print submit('Search');
+    print end_form;
+
+    print hidden("unameSearch");
+		
 }
