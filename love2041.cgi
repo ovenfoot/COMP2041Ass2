@@ -11,38 +11,44 @@ $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
 $currProfile = "";
 $homeUrl = "http://cgi.cse.unsw.edu.au/~tngu211/love2041.cgi";
+$userListURL = "http://cgi.cse.unsw.edu.au/~tngu211/love2041.cgi?|allusers";
 $authenticated = 0;
+$timeToLive = 600; #seconds
+%globalSessionData = ();
+
 
 #create a hash of private fields
 %privateFields = ();
 $privateFields{"uname"} = 1;
-#$privateFields{"password"} = 1;
+$privateFields{"password"} = 1;
 $privateFields{"email"} = 1;
 $privateFields{"found"} = 1;
 $privateFields{"courses"} = 1;
 $privateFields{"name"} = 1;
 $privateFields{"profileImage"} = 1;
 $privateFields{"username"} = 1;
-
-
+$privateFields{"otherPhotos"} = 1;
+$privateFields{"path"} = 1;
 
 #beginPage();
 
+#checkSession();
 if ($ENV{'QUERY_STRING'} eq "" )
 {
 	
 	if(defined(param ("uname")) && defined(param("pass")) )
 	{
 		#debugPrint("yass");
-		if(!authenticate())
+		$globalSessionData{"authenticated"} = authenticate();
+		if($globalSessionData{"authenticated"} ==0)
 		{
-			$authenticated = 1;
+			updateSession();
+			#debugPrint($globalSessionData{"authenticated"});
 			generateUserListHtml();
 		}
 		else
 		{
-			generateHomePage();
-			
+			generateHomePage();	
 		}
 	}
 	else
@@ -99,10 +105,12 @@ sub authenticate
 sub beginPage
 {
 	print header;
-	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
-								-bgcolor=>'CCFF33');
-	
+	print start_html(-title=>'LOVE2041 MOTHERFUCKERS');
+
 	print "<link rel='stylesheet' type='text/css' href='style.css'>\n";
+
+	print p $ENV{"REMOTE_ADDR"};
+	checkSession();
 
 }
 #prints all end html tags and generic hidden variables
@@ -112,16 +120,21 @@ sub endPage
 	#print p $authenticated;
 	#print hidden("auth");
 	#print hidden ("uname");
+
+	#updateSession();
+
 	print '<!-- Designed by DreamTemplate. Please leave link unmodified. -->
 		<br><center><a href="http://www.dreamtemplate.com" title="Website Templates" target="_blank">Website templates</a></center>';
 	print end_html;
+
+	
 }
 
 #prints debug string to html
 sub debugPrint
 {
 	my ($debugString) = @_;
-	#print header;
+	print header;
 	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
 								-bgcolor=>'CCFF33');
 
@@ -133,10 +146,13 @@ sub debugPrint
 sub generateHomePage
 {
 	#print header;
+	
+	createNewSession();
+
 	beginPage();
 
 	print h1 "Welcome to LOVE2041, the most ghetto piece of shit dating website ever";
-	
+
 	print h1;
 	printLink($homeUrl."?|allusers", "Browse All Users");
 	print "</h1>";
@@ -160,6 +176,7 @@ sub generateUserListHtml
 	warningsToBrowser(1);
 
 	print h1 "Browse Users";
+	print p $globalSessionData{"authenticated"};
 	#printLink($homeUrl, "RESTART");
 
 	#print p $ENV{'QUERY_STRING'};
@@ -196,6 +213,7 @@ sub generateUserHtml
 	my ($uname) = @_;
 	my @currData = ();
 	my %udata = ();
+	my @otherPhotos = ();
 	#print header;
 
 	beginPage();
@@ -212,8 +230,8 @@ sub generateUserHtml
 
 	#print image
 	$imagePath = $udata{"profileImage"};
-	print "<img src=$imagePath><p>\n";
-
+	print "<img src=$imagePath><p>\n";	
+	
 	foreach my $field (keys %udata)
 	{
 		
@@ -231,9 +249,23 @@ sub generateUserHtml
 		#print p "$udata{$field}";
 	}
 
+
+
+	print h2 "Other Photos";
+	@otherPhotos = split(/\|/, $udata{"otherPhotos"});
+	foreach my $photo (@otherPhotos)
+	{	
+		$imagePath = $udata{"path"}.$photo;
+		print "<img src=$imagePath><p>\n";
+	}
 	print p;
+	
 	print h1;
+	printLink($userListURL, "Back to User List");
+
+	print p;
 	printLink($homeUrl, "Go home");
+
 	endPage();
 
 }
@@ -252,6 +284,7 @@ sub generateProfileData
 	my %userData = ();
 	my $currField = "";
 	my $tabstring= ();
+	my @otherPhotos = ();
 
 	$userData{"uname"} = $uname;
 	
@@ -287,15 +320,82 @@ sub generateProfileData
 
 	}
 
+
 	$userData{"profileImage"} = $ucgiFolder."profile.jpg";
 
 	
 
 	close (pFile);
 
+	opendir my $udir, $ufolder;
+		@otherPhotos = grep{/photo\d*\.jpg/} readdir $udir;
+	closedir $udir;
+	
+	$userData{"path"} = $ucgiFolder;
+	$userData{"otherPhotos"} = join('|',@otherPhotos);
 	return %userData;
 
 }
+
+sub createNewSession
+{
+	my $ip = $ENV{"REMOTE_ADDR"};
+	$ip =~ s/\./\_/g;
+	my $sessionFile = ".$ip";
+	%globalSessionData = ();
+
+	$globalSessionData{"REMOTE_ADDR"} = $ip;
+	$globalSessionData{"last_access"} = gmtime();
+	$globalSessionData{"timeout"}		= time()+$timeToLive;
+	$globalSessionData{"authenticated"} = -1;
+
+
+	updateSession();
+}
+
+sub updateSession
+{
+	my $ip = $ENV{"REMOTE_ADDR"};
+	$ip =~ s/\./\_/g;
+	my $sessionFile = ".$ip";
+
+	$globalSessionData{"last_access"} = localtime();
+	$globalSessionData{"timeout"}		= time()+$timeToLive;
+
+	open (sFile, "> $sessionFile");
+
+	foreach my $key (keys %globalSessionData)
+	{
+		print sFile "$key,$globalSessionData{$key}\n";
+	}
+
+	close sFile
+}
+
+sub checkSession
+{
+	my $ip = $ENV{"REMOTE_ADDR"};
+	$ip =~ s/\./\_/g;
+	my $sessionFile = ".$ip";
+
+	open (sFile, "< $sessionFile");
+
+	foreach my $line (<sFile>)
+	{
+		@data = split(/\,/, $line);
+		$globalSessionData{$data[0]} = $data[1];
+	}
+
+	close sFile;
+
+	my $timeToDie = $globalSessionData{"timeout"} - time();
+	my $authenticated = $globalSessionData{"authenticated"};
+	print p "last access", $globalSessionData{"last_access"};
+	print p "time to die: $timeToDie";
+	print p "authenticaed = $authenticated";
+}
+
+
 
 #captilises first letter of each word in a string
 #removes underscores where not necessary

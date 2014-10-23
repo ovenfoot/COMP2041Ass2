@@ -9,9 +9,9 @@
 
 body {
 	color: #333333;
-	background-color:#FFFFFF;
-	font-family: Comic Sans MS, Comic Sans MS, Comic Sans MS, sans-serif;
-	font-size:0.83em;
+	background-color:#58FAF4;
+	font-family: Comic Sans MS, Papyrus, Comic Sans MS, sans-serif;
+	font-size:1em;
 	margin:20px auto;
 	width:760px;
 	padding-left:10px;
@@ -21,7 +21,7 @@ body {
 h1, h2, h3, h4, h5, h6, p, pre, blockquote, label, ul, ol, dl, 
 fieldset, address { margin:0.2em 0;}
 
-h1 {font-size:1.67em;}
+h1 {font-size:1.67em; font-family: Papyrus}
 
 h2 {font-size:1.39em;}
 
@@ -35,14 +35,14 @@ li, dd {
 
 a {
 	color: #4E85BD;
-	background-color: #FFFFFF;
+	background-color: #C8FE2E;
 	font-weight: normal;
 	text-decoration: none;
 }
 
 a:hover {
 	color: #33587D;
-	background-color: #FFFFFF;
+	background-color: #FA58F4;
 	font-weight: normal;
 	text-decoration: underline;
 }
