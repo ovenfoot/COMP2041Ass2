@@ -25,6 +25,9 @@ $privateFields{"profileImage"} = 1;
 $privateFields{"username"} = 1;
 
 
+
+#beginPage();
+
 if ($ENV{'QUERY_STRING'} eq "" )
 {
 	
@@ -81,33 +84,46 @@ sub authenticate
 		param("actPass", $password);
 		param("upass", $udata{"password"});
 
-		return 0;
+		return 0;#
 	}
 	else
 	{
-		#return $password.$udata{"password"};
+		#return $password.$udata{"pa                                                  ssword"};
 		return (-2);
 	}
 }
 
+
+
+#prints all start html tags and generic page properties
+sub beginPage
+{
+	print header;
+	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
+								-bgcolor=>'CCFF33');
+	
+	print "<link rel='stylesheet' type='text/css' href='style.css'>\n";
+
+}
 #prints all end html tags and generic hidden variables
 sub endPage
 {
 	#param("auth", $authenticated);
 	#print p $authenticated;
-	print hidden("auth");
-	print hidden ("uname");
+	#print hidden("auth");
+	#print hidden ("uname");
+	print '</font>';
 	print end_html;
 }
-
 
 #prints debug string to html
 sub debugPrint
 {
 	my ($debugString) = @_;
-	print header;
+	#print header;
 	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
 								-bgcolor=>'CCFF33');
+
 
 	print p $debugString;
 	print end_html;
@@ -115,11 +131,11 @@ sub debugPrint
 }
 sub generateHomePage
 {
-	print header;
-	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
-								-bgcolor=>'CCFF33');
+	#print header;
+	beginPage();
 
 	print h1 "Welcome to LOVE2041, the most ghetto piece of shit dating website ever";
+	
 	print h1;
 	printLink($homeUrl."?|allusers", "Browse All Users");
 	print "</h1>";
@@ -129,17 +145,15 @@ sub generateHomePage
         'Enter login: ', textfield('uname'), "<br>\n",
         ' Enter password: ', password_field('pass'),, "<br>\n",
         submit('Login'),
-        end_form,
-        end_html;
+        end_form;
 		
 
-	#endPage();
+	endPage();
 }
 sub generateUserListHtml
 {
-	print header;
-	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
-								-bgcolor=>'CCFF33');
+	#print header;
+	beginPage();
 
 	my @users = getUserList();
 	warningsToBrowser(1);
@@ -181,11 +195,10 @@ sub generateUserHtml
 	my ($uname) = @_;
 	my @currData = ();
 	my %udata = ();
-	print header;
+	#print header;
 
-	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
-								-bgcolor=>'FFFF33');
-	
+	beginPage();
+
 	warningsToBrowser(1);
 
 	%udata = generateProfileData($uname);
