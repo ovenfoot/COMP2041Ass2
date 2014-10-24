@@ -57,8 +57,12 @@ if (checkSession() != 0)
 	if(defined(param ("uname")) && defined(param("pass")) )
 	{
 		#if params defined, user has attempted to log in
-
+		my $uname = param("uname");
+		my $pass = param("pass");
+		
 		$globalSessionData{"authenticated"} = authenticate();
+		$auth = authenticate();
+		debugPrint("trying to login $uname $pass $auth");
 		if($globalSessionData{"authenticated"} ==0)
 		{
 			#successful login. update session file
@@ -68,6 +72,7 @@ if (checkSession() != 0)
 		}
 		else
 		{
+			debugPrint("nggers cant log");
 			#unsuccessful. go back to login page
 			generateLoginPage();	
 		}
@@ -444,7 +449,7 @@ sub printImageLink
 	print $addr;
 	print '" ';
 	print ">";
-	print "<img src=$imagePath width = $scale\% height = $scale\% = s><p>\n";
+	print "<img src=$imagePath width = $scale\% height = $scale\% = s alt = \"\">\n";
 	print "</a>\n";
 
 }
@@ -723,6 +728,8 @@ sub generateSearchResultsHTML
 
 	beginPage();
 	print h1 "Search Results";
+
+	
 	
 	#error out if nothing was found
 	if ($#matchedUsers < 0)
@@ -735,10 +742,13 @@ sub generateSearchResultsHTML
 		print p "You searched for \"$searchString\"";
 
 		#print each of the results with the display pic as an unordered list
+		#print '<div id = "images_hz">';
+
 		foreach my $matchedUser (@matchedUsers)
 		{
 			my $userURL = $homeUrl."?$matchedUser";
 			my %udata = generateUserData($matchedUser);
+			#print ul;
 			print ul;
 			printImageLink($userURL, $udata{"profileImage"}, 20);
 			print ul;
@@ -747,9 +757,9 @@ sub generateSearchResultsHTML
 
 
 		}
+		#print '</div>';
 	}
-	print p " ";
-	print p " ";
+	
 
 
 
@@ -829,6 +839,8 @@ sub generateUserData
 		if ($#tabspaces<0) 
 		{
 			#tabspaces less than one means a field has been added
+			#first remove the trailing '|' character from the previous field
+			$userData{$currField} =~ s/\|$//g;
 			$currField = $line;
 			$currField =~ s/://g;
 			$userData{$currField} = "";
