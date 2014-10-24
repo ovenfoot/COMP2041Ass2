@@ -15,6 +15,7 @@ use File::Copy;
 $cgiFolder = "/~tngu211/students/";
 $dataFolder = getcwd."/students/";
 $defaultProfileFilename = "profile.txt";
+$defaultPreferenceFilename = "preferences.txt";
 $currProfile = "";
 $homeUrl = "/~tngu211/love2041.cgi";
 $userListURL = "/~tngu211/love2041.cgi?|allusers";
@@ -22,6 +23,8 @@ $authenticated = 0;
 $timeToLive = 600; #seconds
 %globalSessionData = ();
 $profPerPage = 3;
+$WORST_SCORE = 10000;
+
 
 #create a hash of private fields
 %privateFields = ();
@@ -109,6 +112,11 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	{
 		logout();
 	}
+	elsif($query eq "matchtest")
+	{
+		my $matchscore = matchedUsers("AwesomeGenius60", "RomanticKitten50");
+		debugPrint($matchscore);
+	}
 	elsif($query =~ /$|userlist(\d+)/)
 	{
 		my $nthPage = $1;
@@ -142,7 +150,7 @@ sub authenticate
 	my $uname = param('uname');
 	my $password = param('pass');
 
-	my %udata = generateProfileData($uname);
+	my %udata = generateUserData($uname);
 	if (!$udata{"found"})
 	{
 		#no user found, failed to authenticate
@@ -181,6 +189,11 @@ sub beginPage
 	print "<link rel='stylesheet' type='text/css' href='style.css'>\n";
 
 	print p $ENV{"REMOTE_ADDR"};
+
+	if ($globalSessionData{"authenticated"} == 0)
+	{
+		printSearchForm();
+	}
 	#print p $ENV{"SERVER_PORT"};
 
 }
@@ -189,19 +202,32 @@ sub beginPage
 sub endPage
 {
 
+	print '<div id = "footer">';
 	if ($globalSessionData{"authenticated"} == 0)
 	{
-		print h2;
 		print "<center>";
+		$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
+		print a;
+		printLink($lastURL, "Back to User List");
+
+		print a;
+		printLink($homeUrl, "Go home               ");
+		print a;
+		
 		printLink($homeUrl."?|logout", "Log Out");
 		print "</center>";
-		print "</h2>";
 		updateSession();
 	}
 
 	print '<!-- Designed by DreamTemplate. Please leave link unmodified. -->
-		<br><center><a href="http://www.dreamtemplate.com" title="Website Templates" target="_blank">Website templates</a></center>';
+		<br><center><a href="http://www.dreamtemplate.com" 
+			title="Website Templates" target="_blank">
+			Website templates</a></center>';
+
+	
+	print '</div>';
 	print end_html;
+
 
 }
 
@@ -275,7 +301,10 @@ sub updateSession
 	open (sFile, "> $sessionFile");
 	foreach my $key (keys %globalSessionData)
 	{
-		print sFile "$key,$globalSessionData{$key}\n";
+		if($key =~ /[\w\d]+/)
+		{
+			print sFile "$key,$globalSessionData{$key}\n";
+		}
 	}
 	close sFile;
 }
@@ -428,7 +457,7 @@ sub printSearchForm
     "$homeUrl",'?search' ,
     '">
     <label>Search for user <input name="|userQuery"></label>
-    <input type="submit">
+    <input type="submit" value = "Search">
 	</form>'	
 }
 
@@ -445,7 +474,8 @@ sub generateLoginPage
 	createNewSession();
 
 	beginPage();
-	print h1 "Welcome to LOVE2041, the most ghetto piece of shit dating website ever";
+	print h1 "Welcome to LOVE2041, the most ghetto piece of 
+				shit dating website ever";
 
 	#login form
 	print start_form,
@@ -517,7 +547,7 @@ sub generateNUserList
 		$index = ($i + $nthUser) % $#users;
 		my $userURL = $homeUrl."?$users[$index]";
 
-		my %udata = generateProfileData($users[$index]);
+		my %udata = generateUserData($users[$index]);
 
 		print '<td>';
 		printImageLink($userURL, $udata{"profileImage"}, 70);
@@ -559,7 +589,7 @@ sub generateNUserList
 	#update session data about the last page person was browsing
 	$globalSessionData{"last_profile_browse"} = $page;
 
-	printSearchForm();
+	
 	endPage();
 
 }
@@ -580,7 +610,7 @@ sub generateUserHtml
 
 	warningsToBrowser(1);
 
-	%udata = generateProfileData($uname);
+	%udata = generateUserData($uname);
 	if (! $udata{"found"})
 	{
 		print "fuck cannot find $uname\n";
@@ -594,9 +624,12 @@ sub generateUserHtml
 	$imagePath = $udata{"profileImage"};
 	print "<img src=$imagePath><p>\n";	
 	
+	print '<table>';
+	print '<td valign = top >';
 	#go through each data field and print values
 	#check if field is private
-	foreach my $field (keys %udata)
+	print h1 "Personal Details";
+	foreach my $field (sort keys %udata)
 	{
 		
 		if(!exists ($privateFields{$field}))
@@ -604,7 +637,7 @@ sub generateUserHtml
 			#check if the field is not private, print it
 			$fieldToPrint = prettyInput ($field);
 			print h2 "$fieldToPrint";
-			@currData = split ('\n',$udata{$field});
+			@currData = split ('\|',$udata{$field});
 			foreach my $entry (@currData)
 			{
 				print p "$entry";
@@ -612,31 +645,68 @@ sub generateUserHtml
 		}
 	}
 
+	print "</td>\n";
+	print "<td valign = top>";
+	#grab the preference data and repeat
+	%udata = generateUserData($uname, "preferences");
+	if (! $udata{"found"})
+	{
+		print "fuck cannot find $uname\n";
+		return (-1);
+	}
+		
+	print h1 "They are looking for ...";
+	#go through each data field and print values
+	#check if field is private
+	foreach my $field (sort keys %udata)
+	{
+		
+		if(!exists ($privateFields{$field}))
+		{
+			#check if the field is not private, print it
+			$fieldToPrint = prettyInput ($field);
+			print h3 "$fieldToPrint";
+			#analyse for min/max values
+			if ($udata{$field} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
+			{
+				print p "$1 - $2";
+			}
+			else
+			{
+				@currData = split ('\|',$udata{$field});
+				foreach my $entry (@currData)
+				{
+					print p "$entry";
+				}
+			}
+		}
+
+	}
+	print "</td>\n";
+
+	print '</table>';
 	#extract photo file names and embed them in the page
+	print '<div id = "images_hz">';
 	print h2 "Other Photos";
 	@otherPhotos = split(/\|/, $udata{"otherPhotos"});
 	foreach my $photo (@otherPhotos)
 	{	
 		$imagePath = $udata{"path"}.$photo;
-		print "<img src=$imagePath><p>\n";
+		print "<img src=$imagePath alt = ", '""', " >\n";
 	}
 	print p;
+
+	print '</div>';
 	
 
 	#end of page, go home links
 
 	#last page browsed stored in session
-	print "<center>";
-	printSearchForm();
-	print "</center>\n";
 
-	$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
-	print h1;
-	printLink($lastURL, "Back to User List");
 
-	print p;
-	printLink($homeUrl, "Go home");
+	print '<div id = "footer">';
 
+	print '</div>';
 	endPage();
 
 }
@@ -668,27 +738,20 @@ sub generateSearchResultsHTML
 		foreach my $matchedUser (@matchedUsers)
 		{
 			my $userURL = $homeUrl."?$matchedUser";
-			my %udata = generateProfileData($matchedUser);
+			my %udata = generateUserData($matchedUser);
 			print ul;
-			printImageLink($userURL, $udata{"profileImage"}, 10);
+			printImageLink($userURL, $udata{"profileImage"}, 20);
 			print ul;
 			printLink($userURL, $matchedUser);
 			print "\n";
+
+
 		}
 	}
 	print p " ";
 	print p " ";
 
-	print "<center>";
-	printSearchForm();
-	print "</center>\n";
-	#last page browsed stored in session
-	$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
-	print h1;
-	printLink($lastURL, "Back to User List");
 
-	print p;
-	printLink($homeUrl, "Go home");
 
 	endPage();
 
@@ -718,14 +781,16 @@ sub getUserList
 
 
 #Grab profile data for given username.
-#takes 1 argument, username desired
+#takes 2 arguments, 
+#1st argument username desired
+#2nd argument is a string, "profile" or "preferences"
+#blank 2nd argument assumes profile is wanted
 #returns hash of user profile data
-sub generateProfileData
+sub generateUserData
 {
-	my ($uname) = @_;
+	my ($uname, $option) = @_;
 	my $ufolder = $dataFolder.$uname."/";
 	my $ucgiFolder = $cgiFolder.$uname."/";
-	my $profileFile = $ufolder.$defaultProfileFilename;
 	my @tabspaces = ();
 	my %userData = ();
 	my $currField = "";
@@ -734,7 +799,16 @@ sub generateProfileData
 
 	$userData{"uname"} = $uname;
 	
-	if (!(-R $profileFile))
+	if(!defined($option) || $option eq "profile")
+	{
+		$ufile = $ufolder.$defaultProfileFilename;
+	}
+	elsif ($option eq "preferences")
+	{
+		$ufile = $ufolder.$defaultPreferenceFilename;
+	}
+
+	if (!(-R $ufile))
 	{
 		#print "user $uname not  found!\n";
 		$userData{"found"} = 0;
@@ -744,7 +818,7 @@ sub generateProfileData
 	#go through each line of the file
 	#use tab delimitation to figure out if something is a field or a value
 	#use a pseudo state machine to decide when to pass in a field or a value 
-	open (pFile, "< $profileFile");
+	open (pFile, "< $ufile");
 	$userData{"found"} = 1;
 	foreach $line (<pFile>)
 	{
@@ -763,7 +837,7 @@ sub generateProfileData
 		{
 			#extra check to make sure that currfield is not empty
 			#tabpsaces greater than 1 indicates a data field
-			$userData{$currField} = prettyInput($userData{$currField}.$line."\n");
+			$userData{$currField} = ($userData{$currField}.$line.'|');
 		}
 
 	}
@@ -771,6 +845,7 @@ sub generateProfileData
 
 	$userData{"profileImage"} = $ucgiFolder."profile.jpg";
 	close (pFile);
+
 
 	#open the directory and see if there are any other photos to display
 	#return the photos as a string joined by '|'
@@ -796,5 +871,18 @@ sub searchForUsers
 	@matchedUsers = grep{/\Q$searchString\E/i} readdir $searchFolder;
 	closedir $searchFolder;
 	return @matchedUsers;
+
+}
+
+#matches 2 specified users
+#returns a weighted score of matching
+#a lower score indicates a better match
+#takes in 2 arguments = 2 usernames
+sub matchedUsers
+{
+	my ($user1, $user2) = @_;
+	my $score = $WORST_SCORE;
+
+	return $score;
 
 }

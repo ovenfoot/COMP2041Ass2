@@ -23,9 +23,12 @@ fieldset, address { margin:0.2em 0;}
 
 h1 {font-size:1.67em; font-family: Papyrus}
 
-h2 {font-size:1.39em;}
+h2 {font-size:1.1em;}
 
-h3 {font-size:1.2em;}
+h3 {
+	font-size:1em;
+	font-style:normal;
+}
 
 h4 {font-size:1em;}
 
@@ -146,9 +149,9 @@ ul#nav a.selected:visited { background: #666666; color: #FFFFFF; }
 
 #footer {
 	color:#000000;
-	background-color:#FFFFFF;
+	background-color:#C8FE2E;
 	border-top:1px solid #CCCCCC;
-	font-size:80%;
+	font-size:100%;
 	line-height:1.5em;
 	width: 760px;
 	clear:both;
@@ -156,13 +159,14 @@ ul#nav a.selected:visited { background: #666666; color: #FFFFFF; }
 
 #footer	a {
 	color:#4E85BD;
-	background-color:#FFFFFF;
+	background-color:#C8FE2E;
 	text-decoration: none;
+	padding-right: 20px;
 }
 
 #footer	a:hover {
 	color:#33587D;
-	background-color:#FFFFFF;
+	background-color:#EEEEEE;
 	font-weight: normal;
 	text-decoration: underline;
 }
@@ -172,4 +176,15 @@ ul#nav a.selected:visited { background: #666666; color: #FFFFFF; }
 	background-color:#FFFFFF;
 	padding:5px 20px 5px 0px;
 	text-align: center;
+}
+
+#images_hz {
+	width: 1000px;
+	height: auto;
+	overflow: hidden
+}
+#images_hz img
+{
+	display: inline;
+	margin: 0 10px;
 }
