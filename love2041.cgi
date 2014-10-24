@@ -5,7 +5,7 @@ use Cwd;
 use CGI qw/:all/;
 use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
 use File::Copy;
-
+use Time::Local;
 
 #FIXME: at the end of the browse user profiles page, prev page does not appear
 #FIXME: fully implement search
@@ -119,8 +119,8 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	}
 	elsif($query eq "matchtest")
 	{
-		my $matchscore = matchedUsers("AwesomeGenius60", "RomanticKitten50");
-		debugPrint($matchscore);
+		my $matchscore = matchedUsers("AwesomeGenius60", "AwesomeSurfer30");
+		debugPrint("$matchscore between AwesomeGenius60 and AwesomeSurfer30");
 	}
 	elsif($query =~ /$|userlist(\d+)/)
 	{
@@ -449,7 +449,7 @@ sub printImageLink
 	print $addr;
 	print '" ';
 	print ">";
-	print "<img src=$imagePath width = $scale\% height = $scale\% = s alt = \"\">\n";
+	print "<img src=$imagePath width = $scale\% height = $scale\% >\n";
 	print "</a>\n";
 
 }
@@ -873,11 +873,13 @@ sub generateUserData
 }
 
 #searches for users matching the input string
-#input argument is search string
+#input argument is search string and old score
+#if no old score is supplied, then we assume we start from nothing and give it a maximum
+#else we stack results form the previous calculation
 #output argument is array of potentially matched users
 sub searchForUsers
 {
-	my ($searchString) = @_;
+	my ($searchString, $oldScore) = @_;
 	my @matchedUsers = ();
 	opendir my $searchFolder, $dataFolder;
 	@matchedUsers = grep{/\Q$searchString\E/i} readdir $searchFolder;
@@ -890,10 +892,55 @@ sub searchForUsers
 #returns a weighted score of matching
 #a lower score indicates a better match
 #takes in 2 arguments = 2 usernames
+#optional third argument is old score, used for recursion
+#default score is worst score
 sub matchedUsers
 {
-	my ($user1, $user2) = @_;
+	my ($user1, $user2, $oldScore) = @_;
 	my $score = $WORST_SCORE;
+	my %u1Data = generateUserData($user1, "profile");
+	my %u2Data = generateUserData($user2, "profile");
+	my %u1Pref = generateUserData($user1, "preferences");
+	my %u2Pref = generateUserData($user2, "preferences");
+	my $u2Age = 0;
+
+	#see if old score has been passed
+	if(defined $oldScore)
+	{
+		$score = $oldScore;
+	}
+	
+
+	#calculate special cases for matching first
+	if ($u1Pref{"gender"} == $u2Data{"gender"})
+	{
+		$score /= 2;
+	}
+
+	#calculate age
+	if($u2Data{"birthdate"} =~ /(\d+)\/(\d+)\/(\d+)/)
+	{	
+		$year = (localtime())[5] + 1900;
+		$u2Age = $year - $1;
+	}
+
+	#see if age is in age range
+	if ($u1Pref{"age"} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
+	{
+		my $min = $1;
+		my $max = $2;
+		if ($min < $u2Age && $u2Age < $max)
+		{
+			$score /=2;
+		}
+	}
+
+	#if oldscore is not defined, it means we've only matched one way.
+	#recurse to match in the reverse direction
+	if (!(defined $oldScore))
+	{
+		$score = matchedUsers($user2, $user1, $score);
+	}
 
 	return $score;
 

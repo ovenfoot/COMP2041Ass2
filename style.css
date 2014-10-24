@@ -13,7 +13,7 @@ body {
 	font-family: Comic Sans MS, Papyrus, Comic Sans MS, sans-serif;
 	font-size:1em;
 	margin:20px auto;
-	width:1000px;
+	width:900px;
 	padding-left:10px;
 	padding-right:10px;
 }
@@ -179,7 +179,7 @@ ul#nav a.selected:visited { background: #666666; color: #FFFFFF; }
 }
 
 #images_hz {
-	width: 1000px;
+	width: auto;
 	height: auto;
 	overflow: hidden
 }
