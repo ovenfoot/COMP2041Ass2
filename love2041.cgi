@@ -39,7 +39,17 @@ $privateFields{"username"} = 1;
 $privateFields{"otherPhotos"} = 1;
 $privateFields{"path"} = 1;
 
-#beginPage();
+#hash of predefined 'preference variables'
+#any info fields outside of this list will be matched according
+#to occurance between the two users.
+%matchingFields = ();
+$matchingFields{"gender"} = 1;
+$matchingFields{"weight"} = 1;
+$matchingFields{"height"} = 1;
+$matchingFields{"birthdate"} = 1;
+$matchingFields{"hair_colour"} = 1;
+$maxWeight = 2;
+
 
 
 #######################################################################
@@ -894,6 +904,10 @@ sub searchForUsers
 #takes in 2 arguments = 2 usernames
 #optional third argument is old score, used for recursion
 #default score is worst score
+
+#weights:
+#age, gender = 2 (need to work out an age range)
+#height, hair colour = 1.5;
 sub matchedUsers
 {
 	my ($user1, $user2, $oldScore) = @_;
@@ -917,19 +931,68 @@ sub matchedUsers
 		$score /= 2;
 	}
 
-	#calculate age
-	if($u2Data{"birthdate"} =~ /(\d+)\/(\d+)\/(\d+)/)
-	{	
-		$year = (localtime())[5] + 1900;
-		$u2Age = $year - $1;
-	}
+	
 
 	#see if age is in age range
 	if ($u1Pref{"age"} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
 	{
 		my $min = $1;
 		my $max = $2;
-		if ($min < $u2Age && $u2Age < $max)
+		my $mean = ($max + $mean)/2;
+		#calculate age
+		if($u2Data{"birthdate"} =~ /(\d+)\/(\d+)\/(\d+)/)
+		{	
+			$year = (localtime())[5] + 1900;
+			$u2Age = $year - $1;
+
+			
+			$score /=calculateWeight($min, $max, $u2Age);
+			
+		}
+		
+	}
+
+
+	#see if weight is in weight range
+	if ($u1Pref{"weight"} =~ /min\:\|\s*([\d]+)kg\|\s*max\:\s*\|\s*([\d]+)kg/)#\s*([\w\d\.]+)/)
+	{
+		my $min = $1;
+		my $max = $2;
+
+		my $mean = ($max + $min)/2;
+		#calculate weight
+		if($u2Data{"weight"} =~ /\s*(\d+)kg/)
+		{	
+			my $u2Weight = $1;
+
+			$score /=calculateWeight($min, $max, $u2Weight);
+		}
+		
+	}
+
+	#see if height is in height range
+	if ($u1Pref{"height"} =~ /min\:\|\s*([\d\.]+)m\|\s*max\:\s*\|\s*([\d\.]+)m/)#\s*([\w\d\.]+)/)
+	{
+		my $min = $1;
+		my $max = $2;
+		
+		#calculate weight
+		if($u2Data{"height"} =~ /\s*([\d+\.]+)m/)
+		{	
+			my $u2Height = $1;
+
+			$score /=calculateWeight($min, $max, $u2Height);
+		}
+		
+	}
+
+	#match hair colours
+	#examine u2's hair colour
+	#use regex to see if u2's hair colour is in u1's preference list
+	if (defined $u2Data{"hair_colour"})
+	{
+		my $u2Hair = $u2Data{"hair_colour"};
+		if($u1Pref{"hair_colours"} =~ /$u2Hair/ )
 		{
 			$score /=2;
 		}
@@ -944,4 +1007,39 @@ sub matchedUsers
 
 	return $score;
 
+}
+
+
+#calculates wieght of success based on (min,max) range and an input value
+#higher result is better
+#maximum result returned from beign in the range
+#outside of the range incurs a penalty
+#3 args: min, max and input value
+sub calculateWeight
+{
+	my($min, $max, $input) = @_;
+	my $weight = 0;
+	my $mean = ($min + $max)/2;
+	my $dist = 0;
+	my $intervalLen = 0;
+
+	if ($min < $input && $input < $max)
+	{
+		$weight = $maxWeight;
+	}
+	else
+	{	
+		$intervalLen = $max - $min;
+		$dist = abs($mean - $input) - $intervalLen;
+
+		$weight = $maxWeight - $dist/$intervalLen; 
+
+		#floor the value at 0.1
+		if($weight<0.1)
+		{
+			$weight = 0.1;
+		}
+	}
+
+	return $weight;
 }
