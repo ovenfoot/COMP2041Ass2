@@ -42,12 +42,13 @@ $privateFields{"path"} = 1;
 #hash of predefined 'preference variables'
 #any info fields outside of this list will be matched according
 #to occurance between the two users.
-%matchingFields = ();
-$matchingFields{"gender"} = 1;
-$matchingFields{"weight"} = 1;
-$matchingFields{"height"} = 1;
-$matchingFields{"birthdate"} = 1;
-$matchingFields{"hair_colour"} = 1;
+%specialMatchingFields = ();
+$specialMatchingFields{"gender"} = 1;
+$specialMatchingFields{"weight"} = 1;
+$specialMatchingFields{"height"} = 1;
+$specialMatchingFields{"birthdate"} = 1;
+$specialMatchingFields{"hair_colour"} = 1;
+$specialMatchingFields{"otherPhotos"} = 1;
 $maxWeight = 2;
 
 
@@ -916,7 +917,10 @@ sub matchedUsers
 	my %u2Data = generateUserData($user2, "profile");
 	my %u1Pref = generateUserData($user1, "preferences");
 	my %u2Pref = generateUserData($user2, "preferences");
+	my $u2ProfileFile = $dataFolder.$user2."/".$defaultProfileFilename;
 	my $u2Age = 0;
+	my @matchedHobbies = ();
+
 
 	#see if old score has been passed
 	if(defined $oldScore)
@@ -926,12 +930,13 @@ sub matchedUsers
 	
 
 	#calculate special cases for matching first
-	if ($u1Pref{"gender"} == $u2Data{"gender"})
+	
+	#gender mismatch is a giant penalty. leave score untouched otherwise
+	if ($u1Pref{"gender"} != $u2Data{"gender"})
 	{
-		$score /= 2;
+		$score = $score*10;
 	}
 
-	
 
 	#see if age is in age range
 	if ($u1Pref{"age"} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
@@ -945,7 +950,6 @@ sub matchedUsers
 			$year = (localtime())[5] + 1900;
 			$u2Age = $year - $1;
 
-			
 			$score /=calculateWeight($min, $max, $u2Age);
 			
 		}
@@ -958,7 +962,6 @@ sub matchedUsers
 	{
 		my $min = $1;
 		my $max = $2;
-
 		my $mean = ($max + $min)/2;
 		#calculate weight
 		if($u2Data{"weight"} =~ /\s*(\d+)kg/)
@@ -994,7 +997,7 @@ sub matchedUsers
 		my $u2Hair = $u2Data{"hair_colour"};
 		if($u1Pref{"hair_colours"} =~ /$u2Hair/ )
 		{
-			$score /=2;
+			$score /=1.5;
 		}
 	}
 
@@ -1005,6 +1008,34 @@ sub matchedUsers
 		$score = matchedUsers($user2, $user1, $score);
 	}
 
+	#now compare common interests by grepping between profile files
+	foreach my $field(%u1Data)
+	{
+		#check if field is a common interest
+		if(!defined $specialMatchingFields{$field})
+		{
+			my @u1hobbies = split (/\|/, $u1Data{$field});
+			#@matchedHobbies, grep {/$hobby/} (<u2Profile>);
+			foreach my $u1hobby (@u1hobbies)
+			{
+				push @matchedHobbies, grep{/$u1hobby/} $u2Data{$field};
+			}
+			#debugPrint(@u1hobbies);
+		}
+
+	}
+
+	#offset the score by one so that no matches ensures parity
+	#offset $#matchedHobbies +1 to reflect count of arrays occurs properly
+	#weight each matched hoby as 0.1
+
+	$score /= (1 + ($#matchedHobbies + 1)*0.1);
+
+	#debugPrint($u2ProfileFile);
+
+	debugPrint(@matchedHobbies);
+	debugPrint($#matchedHobbies);
+	
 	return $score;
 
 }
