@@ -24,6 +24,7 @@ $timeToLive = 600; #seconds
 %globalSessionData = ();
 $profPerPage = 3;
 $WORST_SCORE = 10000;
+%matchScores = ();
 
 
 #create a hash of private fields
@@ -49,7 +50,7 @@ $specialMatchingFields{"height"} = 1;
 $specialMatchingFields{"birthdate"} = 1;
 $specialMatchingFields{"hair_colour"} = 1;
 $specialMatchingFields{"otherPhotos"} = 1;
-$maxWeight = 2;
+$maxWeight = 5;
 
 
 
@@ -77,6 +78,7 @@ if (checkSession() != 0)
 		if($globalSessionData{"authenticated"} ==0)
 		{
 			#successful login. update session file
+			$globalSessionData{"current_user"} = param("uname");
 			updateSession();;
 			#let them into the rest of the site
 			generateNUserList($profPerPage, 0);
@@ -98,6 +100,11 @@ elsif ($ENV{'QUERY_STRING'} eq "" )
 {
 	#empty query string, show them the list of users
 	generateNUserList($profPerPage, 0);
+}
+elsif($ENV{'QUERY_STRING'} eq "myMatches")
+{
+	my $currUser = $globalSessionData{"current_user"};
+	generateNMatches($currUser, 1);
 }
 elsif($ENV{"QUERY_STRING"} =~ /\%7CuserQuery\=(.+)/)
 {
@@ -130,8 +137,8 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	}
 	elsif($query eq "matchtest")
 	{
-		my $matchscore = matchedUsers("AwesomeGenius60", "AwesomeSurfer30");
-		debugPrint("$matchscore between AwesomeGenius60 and AwesomeSurfer30");
+		my $matchscore = matchUsers("AwesomeGenius60", "SadDude80");
+		debugPrint("$matchscore between AwesomeGenius60 and SadDude80");
 	}
 	elsif($query =~ /$|userlist(\d+)/)
 	{
@@ -217,6 +224,8 @@ sub beginPage
 #prints all end html tags and generic hidden variables
 sub endPage
 {
+	print "<br>  </br>";
+
 
 	print '<div id = "footer">';
 	if ($globalSessionData{"authenticated"} == 0)
@@ -227,10 +236,14 @@ sub endPage
 		printLink($lastURL, "Back to User List");
 
 		print a;
-		printLink($homeUrl, "Go home               ");
-		print a;
+		printLink($homeUrl, "Go home    ");
+		
 		
 		printLink($homeUrl."?|logout", "Log Out");
+
+		
+		print p "You are currently logged in as", $globalSessionData{"current_user"};
+
 		print "</center>";
 		updateSession();
 	}
@@ -433,7 +446,7 @@ sub printLink
 	print '" ';
 	print ">";
 	print $text;
-	print "</a>\n";
+	print "</a>";
 }
 
 #helper argument to print image link
@@ -605,7 +618,13 @@ sub generateNUserList
 	#update session data about the last page person was browsing
 	$globalSessionData{"last_profile_browse"} = $page;
 
-	
+	#print 'find my matches button'
+	#print "<br>  </br>";
+
+	print h2;
+	printLink($homeUrl."?myMatches", "Find my matches!");
+	print "</h2>";
+
 	endPage();
 
 }
@@ -656,7 +675,7 @@ sub generateUserHtml
 			@currData = split ('\|',$udata{$field});
 			foreach my $entry (@currData)
 			{
-				print p "$entry";
+				print ul "$entry";
 			}
 		}
 	}
@@ -732,16 +751,12 @@ sub generateUserHtml
 sub generateSearchResultsHTML
 {
 	my ($searchString) = @_;
-
 	#search for users and return matched string list
 	my @matchedUsers = searchForUsers($searchString);
-
 
 	beginPage();
 	print h1 "Search Results";
 
-	
-	
 	#error out if nothing was found
 	if ($#matchedUsers < 0)
 	{
@@ -753,8 +768,6 @@ sub generateSearchResultsHTML
 		print p "You searched for \"$searchString\"";
 
 		#print each of the results with the display pic as an unordered list
-		#print '<div id = "images_hz">';
-
 		foreach my $matchedUser (@matchedUsers)
 		{
 			my $userURL = $homeUrl."?$matchedUser";
@@ -769,15 +782,51 @@ sub generateSearchResultsHTML
 
 		}
 		#print '</div>';
-	}
-	
-
-
-
+	}	
 	endPage();
 
 }
 
+# Generates a page displaying N matches 
+# first argument is user name to match
+# second argument is the number of matches
+sub generateNMatches
+{
+	my ($userIn, $numMatches) = @_;
+	my @allUsers = getUserList();
+	my %localMatches = ();
+
+	chomp $userIn;
+
+
+	beginPage();
+
+	foreach my $user (@allUsers)
+	{
+		chomp $user;
+		if(!($user eq $userIn) )
+		{
+
+			#print p "processing $user and $userIn";
+			$matchScores{$userIn}{$user} = matchUsers($userIn,$user);
+			$matchScores{$user}{$userIn} = $matchScores{$userIn}{$user};
+
+		}
+	}
+
+	%localMatches = %{$matchScores{$userIn}};
+	print "<ul>\n";
+	foreach my $user (sort { $matchScores{$userIn}{$a} <=> $matchScores{$userIn}{$b} } keys %{$matchScores{$userIn}})
+	{
+		my $userURL = $homeUrl."?$user";
+		print "<li>";
+		printLink($userURL, "$user: $matchScores{$userIn}{$user}");
+		print "</li>\n"
+	}
+
+	print "</ul>\n";
+	endPage();
+}
 
 #######################################################################
 #		USER DATABASE FUNCTIONS
@@ -851,7 +900,10 @@ sub generateUserData
 		{
 			#tabspaces less than one means a field has been added
 			#first remove the trailing '|' character from the previous field
-			$userData{$currField} =~ s/\|$//g;
+			if ($currField ne "")
+			{
+				$userData{$currField} =~ s/\|$//g;
+			}
 			$currField = $line;
 			$currField =~ s/://g;
 			$userData{$currField} = "";
@@ -909,9 +961,10 @@ sub searchForUsers
 #weights:
 #age, gender = 2 (need to work out an age range)
 #height, hair colour = 1.5;
-sub matchedUsers
+sub matchUsers
 {
 	my ($user1, $user2, $oldScore) = @_;
+	#debugPrint("matching user $user1 and $user2");
 	my $score = $WORST_SCORE;
 	my %u1Data = generateUserData($user1, "profile");
 	my %u2Data = generateUserData($user2, "profile");
@@ -921,6 +974,7 @@ sub matchedUsers
 	my $u2Age = 0;
 	my @matchedHobbies = ();
 
+	
 
 	#see if old score has been passed
 	if(defined $oldScore)
@@ -932,87 +986,119 @@ sub matchedUsers
 	#calculate special cases for matching first
 	
 	#gender mismatch is a giant penalty. leave score untouched otherwise
-	if ($u1Pref{"gender"} != $u2Data{"gender"})
+
+	if (defined $u1Pref{"gender"} && defined $u2Data{"gender"})
 	{
-		$score = $score*10;
+		if ($u1Pref{"gender"} ne $u2Data{"gender"})
+		{
+			$score = $score*100;
+		}
 	}
 
 
 	#see if age is in age range
-	if ($u1Pref{"age"} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
+	if(defined $u1Pref{"age"} && defined $u2Data{"birthdate"})
 	{
-		my $min = $1;
-		my $max = $2;
-		my $mean = ($max + $mean)/2;
-		#calculate age
-		if($u2Data{"birthdate"} =~ /(\d+)\/(\d+)\/(\d+)/)
-		{	
-			$year = (localtime())[5] + 1900;
-			$u2Age = $year - $1;
+		if ($u1Pref{"age"} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
+		{
+			my $min = $1;
+			my $max = $2;
+			#calculate age
+			if($u2Data{"birthdate"} =~ /(\d{4})\/(\d\d)\/(\d\d)/)
+			{	
+				$year = (localtime())[5] + 1900;
+				$u2Age = $year - $1;
+				#debugPrint("$user2: $u2Age");
 
-			$score /=calculateWeight($min, $max, $u2Age);
+				$score /=calculateWeight($min, $max, $u2Age);
+				
+			}
+			elsif($u2Data{"birthdate"} =~ /(\d{2})\/(\d{2})\/(\d{4})/)
+			{
+				$year = (localtime())[5] + 1900;
+				$u2Age = $year - $3;
+				#debugPrint("badAge $user2: $u2Age");
+
+				$score /=calculateWeight($min, $max, $u2Age);
+				
+			}
+			else
+			{
+				#age unknown, penalty
+				$score /=0.5
+			}
 			
 		}
-		
 	}
 
 
 	#see if weight is in weight range
-	if ($u1Pref{"weight"} =~ /min\:\|\s*([\d]+)kg\|\s*max\:\s*\|\s*([\d]+)kg/)#\s*([\w\d\.]+)/)
+	if(defined $u1Pref{"weight"} && defined $u2Data{"weight"})
 	{
-		my $min = $1;
-		my $max = $2;
-		my $mean = ($max + $min)/2;
-		#calculate weight
-		if($u2Data{"weight"} =~ /\s*(\d+)kg/)
-		{	
-			my $u2Weight = $1;
+		if ($u1Pref{"weight"} =~ /min\:\|\s*([\d]+)kg\|\s*max\:\s*\|\s*([\d]+)kg/)#\s*([\w\d\.]+)/)
+		{
+			my $min = $1;
+			my $max = $2;
+			#calculate weight
+			
+			if($u2Data{"weight"} =~ /\s*(\d+)kg/)
+			{	
+				my $u2Weight = $1;
 
-			$score /=calculateWeight($min, $max, $u2Weight);
-		}
+				$score /=calculateWeight($min, $max, $u2Weight);
+			}
 		
+			
+		}
 	}
 
 	#see if height is in height range
-	if ($u1Pref{"height"} =~ /min\:\|\s*([\d\.]+)m\|\s*max\:\s*\|\s*([\d\.]+)m/)#\s*([\w\d\.]+)/)
+	if(defined $u1Pref{"height"} && defined $u2Data{"height"})
 	{
-		my $min = $1;
-		my $max = $2;
-		
-		#calculate weight
-		if($u2Data{"height"} =~ /\s*([\d+\.]+)m/)
-		{	
-			my $u2Height = $1;
+		if ($u1Pref{"height"} =~ /min\:\|\s*([\d\.]+)m\|\s*max\:\s*\|\s*([\d\.]+)m/)#\s*([\w\d\.]+)/)
+		{
+			my $min = $1;
+			my $max = $2;
+			
+			#calculate weight
+			if($u2Data{"height"} =~ /\s*([\d+\.]+)m/)
+			{	
+				my $u2Height = $1;
 
-			$score /=calculateWeight($min, $max, $u2Height);
+				$score /=calculateWeight($min, $max, $u2Height);
+			}
+
+			
 		}
-		
 	}
 
 	#match hair colours
 	#examine u2's hair colour
 	#use regex to see if u2's hair colour is in u1's preference list
-	if (defined $u2Data{"hair_colour"})
+	if (defined $u2Data{"hair_colour"} && defined $u1Pref{"hair_colours"})
 	{
 		my $u2Hair = $u2Data{"hair_colour"};
 		if($u1Pref{"hair_colours"} =~ /$u2Hair/ )
 		{
-			$score /=1.5;
+			$score /=2;
+		}
+		else
+		{
+			$score /=0.5
 		}
 	}
 
 	#if oldscore is not defined, it means we've only matched one way.
 	#recurse to match in the reverse direction
-	if (!(defined $oldScore))
-	{
-		$score = matchedUsers($user2, $user1, $score);
-	}
+	
 
 	#now compare common interests by grepping between profile files
 	foreach my $field(%u1Data)
 	{
 		#check if field is a common interest
-		if(!defined $specialMatchingFields{$field})
+		if(!defined $specialMatchingFields{$field} 
+			&& defined $u1Data{$field}
+			&& defined $u2Data{$field})
 		{
 			my @u1hobbies = split (/\|/, $u1Data{$field});
 			#@matchedHobbies, grep {/$hobby/} (<u2Profile>);
@@ -1027,15 +1113,20 @@ sub matchedUsers
 
 	#offset the score by one so that no matches ensures parity
 	#offset $#matchedHobbies +1 to reflect count of arrays occurs properly
-	#weight each matched hoby as 0.1
+	#weight each matched hobby as 2
 
-	$score /= (1 + ($#matchedHobbies + 1)*0.1);
+	$score /= (1 + ($#matchedHobbies + 1)*2);
 
 	#debugPrint($u2ProfileFile);
-
-	debugPrint(@matchedHobbies);
-	debugPrint($#matchedHobbies);
+	#debugPrint("$user1 $user2");
+	#debugPrint(@matchedHobbies);
+	#debugPrint($#matchedHobbies);
 	
+	if (!(defined $oldScore))
+	{
+		$score = matchUsers($user2, $user1, $score);
+	}
+
 	return $score;
 
 }
@@ -1063,12 +1154,12 @@ sub calculateWeight
 		$intervalLen = $max - $min;
 		$dist = abs($mean - $input) - $intervalLen;
 
-		$weight = $maxWeight - $dist/$intervalLen; 
+		$weight = $maxWeight - ($dist/$intervalLen)*10; 
 
-		#floor the value at 0.1
-		if($weight<0.1)
+		#floor the value at 0.01
+		if($weight<0.01)
 		{
-			$weight = 0.1;
+			$weight = 0.01;
 		}
 	}
 
