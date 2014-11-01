@@ -104,7 +104,7 @@ elsif ($ENV{'QUERY_STRING'} eq "" )
 elsif($ENV{'QUERY_STRING'} eq "myMatches")
 {
 	my $currUser = $globalSessionData{"current_user"};
-	generateNMatches($currUser, 1);
+	generateNMatches($currUser, 5);
 }
 elsif($ENV{"QUERY_STRING"} =~ /\%7CuserQuery\=(.+)/)
 {
@@ -800,11 +800,14 @@ sub generateNMatches
 	my ($userIn, $numMatches) = @_;
 	my @allUsers = getUserList();
 	my %localMatches = ();
+	my @sortedMatches = ();
 
 	chomp $userIn;
 
 
 	beginPage();
+
+
 
 	foreach my $user (@allUsers)
 	{
@@ -819,17 +822,33 @@ sub generateNMatches
 		}
 	}
 
+	print h1 "Your best love matches!";
+
 	%localMatches = %{$matchScores{$userIn}};
-	print "<ul>\n";
+	print "<ol>\n";
 	foreach my $user (sort { $matchScores{$userIn}{$a} <=> $matchScores{$userIn}{$b} } keys %{$matchScores{$userIn}})
 	{
-		my $userURL = $homeUrl."?$user";
+		push @sortedMatches, $user;
+		# my $userURL = $homeUrl."?$user";
+		# print "<li>";
+		# printLink($userURL, "$user: $matchScores{$userIn}{$user}");
+		# print "</li>\n"
+	}
+
+	for (my $i=0; $i<$numMatches; $i++)
+	{
+		my $userURL = $homeUrl."?$sortedMatches[$i]";
+		my %udata = generateUserData($sortedMatches[$i]);
 		print "<li>";
-		printLink($userURL, "$user: $matchScores{$userIn}{$user}");
+		printImageLink($userURL, $udata{"profileImage"}, 20);
+		print p;
+		printLink($userURL, "$sortedMatches[$i]");
+		
+		
 		print "</li>\n"
 	}
 
-	print "</ul>\n";
+	print "</ol>\n";
 	endPage();
 }
 
