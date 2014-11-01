@@ -18,8 +18,8 @@ $defaultProfileFilename = "profile.txt";
 $defaultPreferenceFilename = "preferences.txt";
 $currProfile = "";
 $homeUrl = "/~tngu211/love2041.cgi";
-$userListURL = "/~tngu211/love2041.cgi?|allusers";
-$authenticated = 0;
+#$userListURL = "/~tngu211/love2041.cgi?|allusers";
+#$authenticated = 0;
 $timeToLive = 600; #seconds
 %globalSessionData = ();
 $profPerPage = 3;
@@ -395,7 +395,7 @@ sub checkSession
 			$otherSession{$data[0]} = $data[1];
 		}
 		
-		close (oFile);
+		close (otherFile);
 
 		if ($otherSession{"timeout"} < time())
 		{
@@ -497,7 +497,7 @@ sub printImageLink
 	}
 	else
 	{
-		$scale = 100;
+		$scale = "100%";
 	}
 
 	print "<a ";
@@ -505,7 +505,7 @@ sub printImageLink
 	print $addr;
 	print '" ';
 	print ">";
-	print "<img src=$imagePath width = $scale\% height = $scale\% >\n";
+	print "<img src=$imagePath width = $scale height = $scale>\n";
 	print "</a>\n";
 
 }
@@ -582,9 +582,9 @@ sub generateNewUserHTML
 		$email = param('email');
 
 		#dummy data
-		# $username = "ovenfoot";
-		# $password = "hello";
-		# $email = "ovenfoot\@hotmail.com";
+		#$username = "ovenfoot";
+		#$password = "hello";
+		#$email = "ovenfoot\@hotmail.com";
 
 		#check if username exists
 		if( grep ( /^$username$/, getUserList()))
@@ -626,7 +626,7 @@ sub generateNewUserHTML
 
 		print "<tr>";
 		print td 'Profle Picture:';
-		print td '<input type = "file" name = "profileImage" />';
+		print td filefield(-name => "profileImage");
 		print "</tr>\n";
 
 		print "<tr>";
@@ -770,7 +770,7 @@ sub generateLoginPage
 	beginPage();
 	print h1 "Hello. I am the love doge. Enter at your own risk";
 
-	printImageLink($homeUrl, "/~tngu211/doge_sticker.jpg", 50);
+	printImageLink($homeUrl, "/~tngu211/doge_sticker.jpg", "50%");
 	#login form
 	if (defined $errFlag)
 	{
@@ -850,7 +850,7 @@ sub generateNUserList
 		my %udata = generateUserData($users[$index]);
 
 		print '<td>';
-		printImageLink($userURL, $udata{"profileImage"}, 70);
+		printImageLink($userURL, $udata{"profileImage"}, "175");
 		printLink($userURL, $users[$index]);
 		print '</td>';
 		print "\n";
@@ -928,7 +928,7 @@ sub generateUserHtml
 
 	#print profile picture from path stored in hash
 	$imagePath = $udata{"profileImage"};
-	print "<img src=$imagePath><p>\n";	
+	print "<img src=$imagePath width = 250><p>\n";	
 	
 	print '<table>';
 	print '<td valign = top >';
@@ -992,10 +992,11 @@ sub generateUserHtml
 
 	print '</table>';
 	#extract photo file names and embed them in the page
-	print '<div id = "images_hz">';
-	print h2 "Other Photos";
 	if(defined $udata{"otherPhotos"})
 	{
+		print '<div id = "images_hz">';
+		print h2 "Other Photos";
+	
 		@otherPhotos = split(/\|/, $udata{"otherPhotos"});
 		foreach my $photo (@otherPhotos)
 		{	
@@ -1003,8 +1004,9 @@ sub generateUserHtml
 			print "<img src=$imagePath alt = ", '""', " >\n";
 		}
 		print p;
+		print '</div>';
 	}
-	print '</div>';
+	
 	endPage();
 
 }
@@ -1037,7 +1039,7 @@ sub generateSearchResultsHTML
 			my %udata = generateUserData($matchedUser);
 			#print ul;
 			print ul;
-			printImageLink($userURL, $udata{"profileImage"}, 20);
+			printImageLink($userURL, $udata{"profileImage"}, "150");
 			print ul;
 			printLink($userURL, $matchedUser);
 			print "\n";
@@ -1098,7 +1100,7 @@ sub generateNMatches
 		my $userURL = $homeUrl."?$sortedMatches[$i]";
 		my %udata = generateUserData($sortedMatches[$i]);
 		print "<li>";
-		printImageLink($userURL, $udata{"profileImage"}, 20);
+		printImageLink($userURL, $udata{"profileImage"}, "50");
 		print p;
 		printLink($userURL, "$sortedMatches[$i]");
 		
@@ -1117,7 +1119,7 @@ sub generateNMatches
 #scans the /students/ folder and extracts out all the users
 sub getUserList
 {
-	opendir my $userdirs, $dataFolder;
+	opendir ((my $userdirs), $dataFolder);
 	my @allUsers = readdir $userdirs;
 	my @returnUsers = ();
 	closedir $userdirs;
@@ -1181,7 +1183,20 @@ sub createUser
 				}
 				elsif ($field eq "profileImage")
 				{
-					debugPrint("tried to upload an image");
+
+					#debugPrint("tried to upload an image $value");
+					$filename = param ("profileImage");
+					my $profileImageFile = $ufolder."/profile.jpg";
+					my $profileImageHandle = upload("profileImage");
+					open PROFILEIMAGE, "> $profileImageFile";
+					#binmode PROFILEIMAGE;
+					while($bytesread = read($filename, $buffer, 1024))
+					{
+						print PROFILEIMAGE $buffer;
+						$bytesread = 0;
+					}
+					close PROFILEIMAGE;
+
 				}
 				print NEWUSERPROFILE "\t$value\n";
 			}
@@ -1283,7 +1298,7 @@ sub generateUserData
 
 	#open the directory and see if there are any other photos to display
 	#return the photos as a string joined by '|'
-	opendir my $udir, $ufolder;
+	opendir ((my $udir), $ufolder);
 	@otherPhotos = grep{/photo\d*\.jpg/} readdir $udir;
 	$userData{"otherPhotos"} = join('|',@otherPhotos);
 	closedir $udir;
@@ -1303,7 +1318,7 @@ sub searchForUsers
 {
 	my ($searchString, $oldScore) = @_;
 	my @matchedUsers = ();
-	opendir my $searchFolder, $dataFolder;
+	opendir ((my $searchFolder), $dataFolder);
 	@matchedUsers = grep{/\Q$searchString\E/i} readdir $searchFolder;
 	closedir $searchFolder;
 	return @matchedUsers;
