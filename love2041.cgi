@@ -62,7 +62,12 @@ $maxWeight = 5;
 #check session checks REMOTE_ADDR.acc file on server directory
 #if session is not currently authenticated, redirect user to login screen
 #if session is authenticated, then allow for more complex use of site
-if (checkSession() != 0)
+if (defined param('newAccount'))
+{
+	createUser(param('new_username'));
+	generateUserHtml(param('new_username'));
+}
+elsif (checkSession() != 0)
 {
 	#session is not authenticated
 
@@ -90,9 +95,15 @@ if (checkSession() != 0)
 			generateLoginPage("failed_login");	
 		}
 	}
+	elsif(defined (param ('newAccount')))
+	{
+
+		createUser(param('new_username'));
+		generateUserHtml(param('new_username'));
+	}
 	elsif($ENV{'QUERY_STRING'} eq "|newUser")
 	{
-		generateNewUserPage();
+		generateNewUserHTML();
 	}
 	else
 	{
@@ -150,7 +161,7 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	}
 	elsif($query eq "newUser")
 	{
-		generateNewUserPage();
+		generateNewUserHTML();
 	}
 
 
@@ -237,6 +248,12 @@ sub endPage
 
 
 	print '<div id = "footer">';
+
+	if (!defined $globalSessionData{"current_user"})
+	{
+		$globalSessionData{"authenticated"} = -1;
+	}
+
 	if ($globalSessionData{"authenticated"} == 0 && !defined $errorFlag)
 	{
 		print "<center>";
@@ -251,7 +268,9 @@ sub endPage
 		printLink($homeUrl."?|logout", "Log Out");
 
 		
-		print p "You are currently logged in as", $globalSessionData{"current_user"};
+		print "<p> You are currently logged in as "; 
+		printLink ($homeUrl."?".$globalSessionData{"current_user"}, $globalSessionData{"current_user"});
+		print "</p>";
 
 		print "</center>";
 		updateSession();
@@ -409,6 +428,10 @@ sub checkSession
 		return -1;
 	}
 	
+	if (!defined $globalSessionData{"current_user"})
+	{
+		$globalSessionData{"authenticated"} = -1;
+	}
 	return $globalSessionData{"authenticated"};
 }
 
@@ -538,7 +561,7 @@ sub printAllParams
 #######################################################################
 
 #new user creation page
-sub generateNewUserPage
+sub generateNewUserHTML
 {
 	
 	#debugPrint("Wassup negro?");
@@ -547,7 +570,7 @@ sub generateNewUserPage
 	my $email = "";
 	my @allUsers = ();
 
-	if (0)#!defined param('new_username'))
+	if (!defined param('new_username'))
 	{
 		printNewLogin();
 	}
@@ -559,9 +582,9 @@ sub generateNewUserPage
 		$email = param('email');
 
 		#dummy data
-		$username = "ovenfoot";
-		$password = "hello";
-		$email = "ovenfoot\@hotmail.com";
+		# $username = "ovenfoot";
+		# $password = "hello";
+		# $email = "ovenfoot\@hotmail.com";
 
 		#check if username exists
 		if( grep ( /^$username$/, getUserList()))
@@ -587,7 +610,7 @@ sub generateNewUserPage
 
 		beginPage("nosearch");
 
-		printAllParams();
+		#printAllParams();
 
 		print h1 "Hello, $username!";
 		print h2 "Tell us a bit about yourself!";
@@ -597,7 +620,15 @@ sub generateNewUserPage
 		print start_form;
 		
 		print "<table>\n";
+
+		################ BASIC INFO ###################
 		print "<tr> <td>", h2 "Basic Info", "</td></tr>";
+
+		print "<tr>";
+		print td 'Profle Picture:';
+		print td '<input type = "file" name = "profileImage" />';
+		print "</tr>\n";
+
 		print "<tr>";
 		print td 'Name:';
 		print td (textfield('name'));
@@ -615,10 +646,27 @@ sub generateNewUserPage
 
 		print "<tr>";
 		print td 'Weight (in kg):';
-		print td (textfield('hair_color'));
+		print td (textfield('weight'));
+		print "</tr>\n";
+
+		print "<tr>";
+		print td "Gender";
+		print '<td> <select name = "gender">', "\n";
+		print option ("");
+		print option ("Male");
+		print option ("Female");
+		print option ("Other");
+		print "</select> </td>";
+
+		print "</tr>\n";
+
+		print "<tr>";
+		print td 'Birthday:';
+		print td '<input type="date" name = "birthdate">';
 		print "</tr>\n";
 
 
+		########### STUDY DEETS ####################
 		print "<tr> <td>", h2 "Study details", "</td></tr>";
 		print "<tr>";
 		print td 'Degree: ';
@@ -632,6 +680,8 @@ sub generateNewUserPage
 							-rows=>"10",
 							-cols=>"25"));
 		print "</tr>\n";
+
+		################INTERESTS AND HOBBIES #################
 
 		print "<tr> <td>", h2 "Interests and hobbies", "</td></tr>";
 
@@ -901,67 +951,59 @@ sub generateUserHtml
 		}
 	}
 
-	print "</td>\n";
-	print "<td valign = top>";
+	
 	#grab the preference data and repeat
 	%udata = generateUserData($uname, "preferences");
-	if (! $udata{"found"})
+	if ($udata{"found"})
 	{
-		print "fuck cannot find $uname\n";
-		return (-1);
-	}
-		
-	print h1 "They are looking for ...";
-	#go through each data field and print values
-	#check if field is private
-	foreach my $field (sort keys %udata)
-	{
-		
-		if(!exists ($privateFields{$field}))
+		print "</td>\n";
+		print "<td valign = top>";
+		print h1 "They are looking for ...";
+		#go through each data field and print values
+		#check if field is private
+		foreach my $field (sort keys %udata)
 		{
-			#check if the field is not private, print it
-			$fieldToPrint = prettyInput ($field);
-			print h3 "$fieldToPrint";
-			#analyse for min/max values
-			if ($udata{$field} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
+			
+			if(!exists ($privateFields{$field}))
 			{
-				print p "$1 - $2";
-			}
-			else
-			{
-				@currData = split ('\|',$udata{$field});
-				foreach my $entry (@currData)
+				#check if the field is not private, print it
+				$fieldToPrint = prettyInput ($field);
+				print h3 "$fieldToPrint";
+				#analyse for min/max values
+				if ($udata{$field} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
 				{
-					print p "$entry";
+					print p "$1 - $2";
+				}
+				else
+				{
+					@currData = split ('\|',$udata{$field});
+					foreach my $entry (@currData)
+					{
+						print p "$entry";
+					}
 				}
 			}
-		}
 
+		}
+		print "</td>\n";
 	}
-	print "</td>\n";
+		
+	
 
 	print '</table>';
 	#extract photo file names and embed them in the page
 	print '<div id = "images_hz">';
 	print h2 "Other Photos";
-	@otherPhotos = split(/\|/, $udata{"otherPhotos"});
-	foreach my $photo (@otherPhotos)
-	{	
-		$imagePath = $udata{"path"}.$photo;
-		print "<img src=$imagePath alt = ", '""', " >\n";
+	if(defined $udata{"otherPhotos"})
+	{
+		@otherPhotos = split(/\|/, $udata{"otherPhotos"});
+		foreach my $photo (@otherPhotos)
+		{	
+			$imagePath = $udata{"path"}.$photo;
+			print "<img src=$imagePath alt = ", '""', " >\n";
+		}
+		print p;
 	}
-	print p;
-
-	print '</div>';
-	
-
-	#end of page, go home links
-
-	#last page browsed stored in session
-
-
-	print '<div id = "footer">';
-
 	print '</div>';
 	endPage();
 
@@ -1090,6 +1132,83 @@ sub getUserList
 }
 
 
+#create user profile based on submitted parameters
+sub createUser
+{
+	my ($username) = @_;
+	my $ufolder = $dataFolder.$username;
+	my $uprofileFile = $ufolder."/".$defaultProfileFilename;
+	mkdir $ufolder;
+
+	chmod 0755, $ufolder;
+	open NEWUSERPROFILE, "> $uprofileFile" or die ("fuck");
+	#debugPrint("opening $uprofileFile");
+	#printAllParams();
+	foreach my $field (param())
+	{
+		
+		if(param($field) ne "" && $field ne "newAccount")
+		{
+			#field is nonempty.
+			#store it in the standard format
+
+			my $fieldToStore = $field;
+			$fieldToStore =~ s/new\_//g;
+			print NEWUSERPROFILE "$fieldToStore:\n";
+			my @values = split(/\n/, param($field));
+			foreach my $value (@values)
+			{
+				#check if field requires kg or m at the end
+				if($field eq "height")
+				{
+					$value =~ s/m//g;
+
+					$value .="m";
+				}
+				elsif ($field eq "weight")
+				{
+					$value =~ s/kg//g;
+					$value =~ s/\D//g;
+					$value .="kg";
+				}
+				elsif ($field eq "gender")
+				{
+					$value = lc$value;
+				}
+				elsif($field eq "birthdate")
+				{
+					$value =~ s/\-/\//g;
+				}
+				elsif ($field eq "profileImage")
+				{
+					debugPrint("tried to upload an image");
+				}
+				print NEWUSERPROFILE "\t$value\n";
+			}
+
+		}
+		else
+		{
+			#debugPrint("$field has no value!");
+		}
+		#@values = split(/\n/, param($field));
+		#debugPrint ("$field\n:");
+		#debugPrint ($#values);
+		#debugPrint (@values);
+
+
+	}
+
+	close NEWUSERPROFILE;
+	chmod 0755, $uprofileFile;
+
+	$globalSessionData{"current_user"} = $username;
+	$globalSessionData{"authenticated"} = 0;
+
+	updateSession();
+
+}
+
 #Grab profile data for given username.
 #takes 2 arguments, 
 #1st argument username desired
@@ -1117,10 +1236,10 @@ sub generateUserData
 	{
 		$ufile = $ufolder.$defaultPreferenceFilename;
 	}
-
+	#debugPrint("trying to find $ufile");
 	if (!(-R $ufile))
 	{
-		#print "user $uname not  found!\n";
+		#debugPrint("not found");
 		$userData{"found"} = 0;
 		return %userData;
 	}
