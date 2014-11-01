@@ -90,6 +90,10 @@ if (checkSession() != 0)
 			generateLoginPage("failed_login");	
 		}
 	}
+	elsif($ENV{'QUERY_STRING'} eq "|newUser")
+	{
+		generateNewUserPage();
+	}
 	else
 	{
 		#no login attempt, go to login page
@@ -125,7 +129,6 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	my $query = $ENV{'QUERY_STRING'};
 	$query =~ s/\|//g;
 
-
 	#switch through the queries and decide what page to display
 	if($query eq "allusers")
 	{
@@ -140,10 +143,14 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 		my $matchscore = matchUsers("AwesomeGenius60", "SadDude80");
 		debugPrint("$matchscore between AwesomeGenius60 and SadDude80");
 	}
-	elsif($query =~ /$|userlist(\d+)/)
+	elsif($query =~ /userlist(\d+)/)
 	{
 		my $nthPage = $1;
 		generateNUserList($profPerPage, $nthPage);
+	}
+	elsif($query eq "newUser")
+	{
+		generateNewUserPage();
 	}
 
 
@@ -204,8 +211,9 @@ sub authenticate
 #prints all start html tags and generic page properties
 sub beginPage
 {
+	my ($flag) = @_;
 	print header;
-	print start_html(-title=>'LOVE2041 MOTHERFUCKERS');
+	print start_html(-title=>'love doge go!');
 
 	print param("unameSearch");
 
@@ -224,11 +232,12 @@ sub beginPage
 #prints all end html tags and generic hidden variables
 sub endPage
 {
+	my ($errorFlag)= @_;
 	print "<br>  </br>";
 
 
 	print '<div id = "footer">';
-	if ($globalSessionData{"authenticated"} == 0)
+	if ($globalSessionData{"authenticated"} == 0 && !defined $errorFlag)
 	{
 		print "<center>";
 		$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
@@ -490,9 +499,214 @@ sub printSearchForm
 	</form>'	
 }
 
+#print new login form
+sub printNewLogin
+{
+	my ($errorMessage) = @_;
+	beginPage("nosearch");
+	print h1 "Welcome, new person!";
+	print h2 "Enter a username a password!";
+	if(defined $errorMessage)
+	{
+		print "\n",'<p style = "color:#FF0000">',
+		$errorMessage, 
+		'</p>', "\n";
+	}
+	
+
+	print start_form;
+    print 'Enter login: ', p textfield('new_username'), p "<br>\n";
+    print 'Password: ', p password_field('new_password'),p "<br>\n";
+    print 'Email: ', p textfield('email'), p "<br>\n";
+    print submit('submit');
+    print end_form;
+    endPage("noauth");
+}
+
+#print all parameters on the page currently
+sub printAllParams
+{
+	foreach my $key (param())
+	{
+		print p ("param key: $key \n");
+		my $val = param($key);
+		print p ("value: $val");
+	}
+}
 #######################################################################
 #		HTML SUBPAGE GENERATORS
 #######################################################################
+
+#new user creation page
+sub generateNewUserPage
+{
+	
+	#debugPrint("Wassup negro?");
+	my $username = "";
+	my $password = "";
+	my $email = "";
+	my @allUsers = ();
+
+	if (0)#!defined param('new_username'))
+	{
+		printNewLogin();
+	}
+	else
+	{
+
+		$username = param('new_username');
+		$password = param('new_password');
+		$email = param('email');
+
+		#dummy data
+		$username = "ovenfoot";
+		$password = "hello";
+		$email = "ovenfoot\@hotmail.com";
+
+		#check if username exists
+		if( grep ( /^$username$/, getUserList()))
+		{
+
+			printNewLogin("username already exists!");
+			return;
+		}
+
+		#check that password field is nonempty
+		if($password eq "")
+		{
+			printNewLogin("password can't be empty!");
+			return;
+		}
+
+		#check for a valid email address
+		if (!($email =~ /.+\@.+\..+/ ))
+		{
+			printNewLogin("Invalid Email!");
+			return;
+		}
+
+		beginPage("nosearch");
+
+		printAllParams();
+
+		print h1 "Hello, $username!";
+		print h2 "Tell us a bit about yourself!";
+		print h3 "(Feel free to leave out the more private details!)";
+		print p param('height');
+
+		print start_form;
+		
+		print "<table>\n";
+		print "<tr> <td>", h2 "Basic Info", "</td></tr>";
+		print "<tr>";
+		print td 'Name:';
+		print td (textfield('name'));
+		print "</tr>\n";
+
+		print "<tr>";
+		print td 'Height (in metres):';
+		print td (textfield('height'));
+		print "</tr>\n";
+
+		print "<tr>";
+		print td 'Hair colour:';
+		print td (textfield('hair_color'));
+		print "</tr>\n";
+
+		print "<tr>";
+		print td 'Weight (in kg):';
+		print td (textfield('hair_color'));
+		print "</tr>\n";
+
+
+		print "<tr> <td>", h2 "Study details", "</td></tr>";
+		print "<tr>";
+		print td 'Degree: ';
+		print td (textfield('degree'));
+		print "</tr>\n";
+
+		print "<tr>";
+		print "<td valign = 'top'>", 'Courses';
+		print "</td>";
+		print td (textarea(-name=>'courses', 
+							-rows=>"10",
+							-cols=>"25"));
+		print "</tr>\n";
+
+		print "<tr> <td>", h2 "Interests and hobbies", "</td></tr>";
+
+		print "<tr>";
+		print "<td valign = 'top'>", 'Favourite Hobbies:';
+		print "</td>";
+		print td (textarea(-name=>'favourite_hobbies', 
+							-rows=>"10",
+							-cols=>"25"));
+		print "</tr>\n";
+
+		print "<tr>";
+		print "<td valign = 'top'>", 'Favourite Books:';
+		print "</td>";
+		print td (textarea(-name=>'favourite_books', 
+							-rows=>"10",
+							-cols=>"25"));
+		print "</tr>\n";
+
+
+		print "<tr>";
+		print "<td valign = 'top'>", 'Favourite TV Shows:';
+		print "</td>";
+		print td (textarea(-name=>'favourite_TV_shows', 
+							-rows=>"10",
+							-cols=>"25"));
+		print "</tr>\n";
+
+
+		print "<tr>";
+		print "<td valign = 'top'>", 'Favourite Movies:';
+		print "</td>";
+		print td (textarea(-name=>'favourite_movies', 
+							-rows=>"10",
+							-cols=>"25"));
+		print "</tr>\n";
+
+		
+
+
+		param('new_username', $username);
+		param('new_password', $password);
+		param('email', $email);
+		param('newAccount', 1);
+		print hidden('new_password');
+		print hidden('email');
+		print hidden('new_username');
+		print hidden('email');
+		#print hidden('newAccount');
+
+
+		print "<tr> <td></td> <td>";
+		print center submit(-name=>'newAccount',
+							-value=>'Submit');
+		print "</td> </tr>\n";
+		print "</table>\n";
+
+		print end_form;
+
+		print p param('hair_color');
+		
+		
+		
+		
+		print hidden('newAccount');
+		
+
+
+		endPage();
+	}
+
+
+
+}
+
 
 
 #login page. Generate everything necessary
@@ -504,7 +718,7 @@ sub generateLoginPage
 	createNewSession();
 
 	beginPage();
-	print h1 "Welcome to the love doge. Enter at your own risk";
+	print h1 "Hello. I am the love doge. Enter at your own risk";
 
 	printImageLink($homeUrl, "/~tngu211/doge_sticker.jpg", 50);
 	#login form
@@ -518,7 +732,9 @@ sub generateLoginPage
         submit('Login'),
         end_form;
 		
-
+    print h2;
+    printLink("$homeUrl?|newUser", "Don't have an account? Create one here!");
+    print "</h2>\n";
 	endPage();
 }
 
@@ -1023,11 +1239,14 @@ sub matchUsers
 	#see if age is in age range
 	if(defined $u1Pref{"age"} && defined $u2Data{"birthdate"})
 	{
-		if ($u1Pref{"age"} =~ /min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)#\s*([\w\d\.]+)/)
+		if ($u1Pref{"age"} =~ 
+			/min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)
 		{
 			my $min = $1;
 			my $max = $2;
 			#calculate age
+			#note that there are two cases of ages being stored in the database
+			#first with year out front, second with year at the back
 			if($u2Data{"birthdate"} =~ /(\d{4})\/(\d\d)\/(\d\d)/)
 			{	
 				$year = (localtime())[5] + 1900;
@@ -1059,7 +1278,8 @@ sub matchUsers
 	#see if weight is in weight range
 	if(defined $u1Pref{"weight"} && defined $u2Data{"weight"})
 	{
-		if ($u1Pref{"weight"} =~ /min\:\|\s*([\d]+)kg\|\s*max\:\s*\|\s*([\d]+)kg/)#\s*([\w\d\.]+)/)
+		if ($u1Pref{"weight"} =~ 
+			/min\:\|\s*([\d]+)kg\|\s*max\:\s*\|\s*([\d]+)kg/)
 		{
 			my $min = $1;
 			my $max = $2;
@@ -1079,7 +1299,8 @@ sub matchUsers
 	#see if height is in height range
 	if(defined $u1Pref{"height"} && defined $u2Data{"height"})
 	{
-		if ($u1Pref{"height"} =~ /min\:\|\s*([\d\.]+)m\|\s*max\:\s*\|\s*([\d\.]+)m/)#\s*([\w\d\.]+)/)
+		if ($u1Pref{"height"} =~ 
+			/min\:\|\s*([\d\.]+)m\|\s*max\:\s*\|\s*([\d\.]+)m/)
 		{
 			my $min = $1;
 			my $max = $2;
