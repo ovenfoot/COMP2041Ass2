@@ -4,11 +4,17 @@
 use Cwd;
 use CGI qw/:all/;
 use CGI::Carp qw(fatalsToBrowser warningsToBrowser);
+#use Email::MIME;
+#use Email::Sender::Simple qw(sendmail);
 use File::Copy;
 use Time::Local;
 
-#FIXME: at the end of the browse user profiles page, prev page does not appear
-#FIXME: fully implement search
+
+#TODO1: get a decent top bar working
+#TODO2: Multiple image upload
+#TODO3: EDIT PROFILE
+#TODO4: profile 'statement'
+#TODO5: recover password
 #######################################################################
 #		GLOBAL VAR INITIALISATION
 #######################################################################
@@ -77,7 +83,10 @@ elsif(defined param('new_preferences'))
 	generateUserHtml(param('new_username'));
 
 }
-
+elsif ($ENV{'QUERY_STRING'} eq "lostPass")
+{
+	generatePasswordRecoveryHTML();
+}
 elsif (checkSession() != 0)
 {
 	#session is not authenticated
@@ -168,6 +177,7 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	{
 		generateNewUserProfileHTML();
 	}
+
 	elsif($query eq "preferenceTest")
 	{
 		param('new_username', "ovenfoot");
@@ -241,7 +251,7 @@ sub beginPage
 
 	print p $ENV{"REMOTE_ADDR"};
 
-	if ($globalSessionData{"authenticated"} == 0)
+	if ($globalSessionData{"authenticated"} == 0 && !defined $flag)
 	{
 		printSearchForm();
 	}
@@ -576,6 +586,71 @@ sub printAllParams
 #		HTML SUBPAGE GENERATORS
 #######################################################################
 
+#password recovery page. Finds the password and sends it in plaintext
+sub generatePasswordRecoveryHTML
+{
+		
+	if(defined param('lostUname'))
+	{
+		my %udata = generateUserData(param('lostUname'), "profile");
+		beginPage("nosearch");
+		if (defined $udata{"email"})
+		{
+			my $to = $udata{"email"};
+			my $from = 'tngu211@cse.unsw.edu.au';
+			my $subject = 'Love Doge Password Reset';
+			my $message = "Password Reset requested. your password is ".$udata{"password"};
+			 
+			open(MAIL, "|/usr/sbin/sendmail -t");
+			 
+			# Email Header
+			print MAIL "To: $to\n";
+			print MAIL "From: $from\n";
+			print MAIL "Subject: $subject\n\n";
+			# Email Body
+			print MAIL $message;
+
+			close(MAIL);
+			print h3 "Recovery Email Sent to $to\n";
+			
+			print h2;
+			printLink($homeUrl, "Go back to login");
+			print "</h2\n>";
+
+		}
+		else
+		{
+			print p "No username or email found!";
+			print h2;
+			printLink($homeUrl, "Go back to login");
+			print "</h2\n>";
+
+		}
+		endPage();
+	}
+	else
+	{
+		beginPage('nosearch');
+		print start_form;
+		print h1 "Password Recovery";
+		print p "Forgot your password? Doge worry. Type in your username and we'll send you your password in an email";
+		print p "Login:", textfield('lostUname');
+		#print h3 "Email:", textfield('lostEmail');
+		
+		print submit(-name=>'recover',
+								-value=>'Recover me!');
+								
+		print end_form;
+		
+		print h2;
+		printLink($homeUrl, "Go back to login");
+		print "</h2\n>";
+
+		
+		endPage();
+	}
+}
+
 #new user creation page
 sub generateNewUserProfileHTML
 {
@@ -874,6 +949,11 @@ sub generateLoginPage
     print h2;
     printLink("$homeUrl?|newUser", "Don't have an account? Create one here!");
     print "</h2>\n";
+	
+	print h3;
+	printLink("$homeUrl?lostPass", "Lost your password?");
+	print "</h3>\n";
+	
 	endPage();
 }
 
