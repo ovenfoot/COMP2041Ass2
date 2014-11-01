@@ -73,8 +73,8 @@ if (checkSession() != 0)
 		my $pass = param("pass");
 		
 		$globalSessionData{"authenticated"} = authenticate();
-		$auth = authenticate();
-		debugPrint("trying to login $uname $pass $auth");
+		#$auth = authenticate();
+		#debugPrint("trying to login $uname $pass $auth");
 		if($globalSessionData{"authenticated"} ==0)
 		{
 			#successful login. update session file
@@ -85,9 +85,9 @@ if (checkSession() != 0)
 		}
 		else
 		{
-			debugPrint("nggers cant log");
+			#debugPrint("nggers cant log");
 			#unsuccessful. go back to login page
-			generateLoginPage();	
+			generateLoginPage("failed_login");	
 		}
 	}
 	else
@@ -499,14 +499,19 @@ sub printSearchForm
 sub generateLoginPage
 {
 
+	my ($errFlag) = @_;
 	#create a new session page for login
 	createNewSession();
 
 	beginPage();
-	print h1 "Welcome to LOVE2041, the most ghetto piece of 
-				shit dating website ever";
+	print h1 "Welcome to the love doge. Enter at your own risk";
 
+	printImageLink($homeUrl, "/~tngu211/doge_sticker.jpg", 50);
 	#login form
+	if (defined $errFlag)
+	{
+		print "\n",'<p style = "color:#FF0000"> Wrong password or username! </p>', "\n";
+	}
 	print start_form,
         'Enter login: ', p textfield('uname'), p "<br>\n",
         ' Enter password: ', p password_field('pass'),p "<br>\n",
