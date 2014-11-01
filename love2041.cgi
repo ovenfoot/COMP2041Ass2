@@ -62,11 +62,22 @@ $maxWeight = 5;
 #check session checks REMOTE_ADDR.acc file on server directory
 #if session is not currently authenticated, redirect user to login screen
 #if session is authenticated, then allow for more complex use of site
-if (defined param('newAccount'))
+
+#first, new profile generation
+if (defined param('new_profile'))
 {
-	createUser(param('new_username'));
-	generateUserHtml(param('new_username'));
+	#create new profile file and get the uesr to enter prefernces
+	createNewProfile(param('new_username'));
+	generateNewUserPreferencesHTML();
 }
+elsif(defined param('new_preferences'))
+{
+	#create new prefernce file and show the user their page
+	createNewPreferences(param('new_username'));
+	generateUserHtml(param('new_username'));
+
+}
+
 elsif (checkSession() != 0)
 {
 	#session is not authenticated
@@ -95,15 +106,9 @@ elsif (checkSession() != 0)
 			generateLoginPage("failed_login");	
 		}
 	}
-	elsif(defined (param ('newAccount')))
-	{
-
-		createUser(param('new_username'));
-		generateUserHtml(param('new_username'));
-	}
 	elsif($ENV{'QUERY_STRING'} eq "|newUser")
 	{
-		generateNewUserHTML();
+		generateNewUserProfileHTML();
 	}
 	else
 	{
@@ -161,10 +166,14 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	}
 	elsif($query eq "newUser")
 	{
-		generateNewUserHTML();
+		generateNewUserProfileHTML();
 	}
-
-
+	elsif($query eq "preferenceTest")
+	{
+		param('new_username', "ovenfoot");
+		generateNewUserPreferencesHTML();
+		
+	}
 }
 else
 {
@@ -224,7 +233,7 @@ sub beginPage
 {
 	my ($flag) = @_;
 	print header;
-	print start_html(-title=>'love doge go!');
+	print start_html(-title=>'love doge gofuckyourself!');
 
 	print param("unameSearch");
 
@@ -254,20 +263,27 @@ sub endPage
 		$globalSessionData{"authenticated"} = -1;
 	}
 
+	#if we're in an authenticated session then print logout details
 	if ($globalSessionData{"authenticated"} == 0 && !defined $errorFlag)
 	{
 		print "<center>";
+		
+		#back to last browse button
+		if (!defined $globalSessionData{"last_profile_browse"})
+		{
+			$globalSessionData{"last_profile_browse"} = 0;
+		}
 		$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
 		print a;
 		printLink($lastURL, "Back to User List");
 
+		#redundant home button 
 		print a;
 		printLink($homeUrl, "Go home    ");
-		
-		
+		#logout
 		printLink($homeUrl."?|logout", "Log Out");
-
 		
+		#link to go to your profile
 		print "<p> You are currently logged in as "; 
 		printLink ($homeUrl."?".$globalSessionData{"current_user"}, $globalSessionData{"current_user"});
 		print "</p>";
@@ -561,7 +577,7 @@ sub printAllParams
 #######################################################################
 
 #new user creation page
-sub generateNewUserHTML
+sub generateNewUserProfileHTML
 {
 	
 	#debugPrint("Wassup negro?");
@@ -580,11 +596,6 @@ sub generateNewUserHTML
 		$username = param('new_username');
 		$password = param('new_password');
 		$email = param('email');
-
-		#dummy data
-		#$username = "ovenfoot";
-		#$password = "hello";
-		#$email = "ovenfoot\@hotmail.com";
 
 		#check if username exists
 		if( grep ( /^$username$/, getUserList()))
@@ -635,8 +646,8 @@ sub generateNewUserHTML
 		print "</tr>\n";
 
 		print "<tr>";
-		print td 'Height (in metres):';
-		print td (textfield('height'));
+		print td 'Height:';
+		print td (textfield('height')), "m";
 		print "</tr>\n";
 
 		print "<tr>";
@@ -645,8 +656,8 @@ sub generateNewUserHTML
 		print "</tr>\n";
 
 		print "<tr>";
-		print td 'Weight (in kg):';
-		print td (textfield('weight'));
+		print td 'Weight:';
+		print td (textfield('weight')), "kg";
 		print "</tr>\n";
 
 		print "<tr>";
@@ -719,22 +730,28 @@ sub generateNewUserHTML
 							-cols=>"25"));
 		print "</tr>\n";
 
+		print "<tr>";
+		print "<td valign = 'top'>", 'Favourite Bands:';
+		print "</td>";
+		print td (textarea(-name=>'favourite_bands', 
+							-rows=>"10",
+							-cols=>"25"));
+		print "</tr>\n";
+
 		
-
-
 		param('new_username', $username);
 		param('new_password', $password);
 		param('email', $email);
-		param('newAccount', 1);
+		param('new_profile', 1);
 		print hidden('new_password');
 		print hidden('email');
 		print hidden('new_username');
 		print hidden('email');
-		#print hidden('newAccount');
+		#print hidden('new_profile');
 
 
 		print "<tr> <td></td> <td>";
-		print center submit(-name=>'newAccount',
+		print center submit(-name=>'new_profile',
 							-value=>'Submit');
 		print "</td> </tr>\n";
 		print "</table>\n";
@@ -746,13 +763,85 @@ sub generateNewUserHTML
 		
 		
 		
-		print hidden('newAccount');
+		print hidden('new_profile');
 		
 
 
 		endPage();
 	}
 
+
+
+}
+
+
+#new user creation page
+sub generateNewUserPreferencesHTML
+{
+	
+	#debugPrint("Wassup negro?");
+	my $username = "";
+	my $password = "";
+	my $email = "";
+	my @allUsers = ();
+
+	$username = param('new_username');
+	
+	beginPage("nosearch");
+
+	print h1 "And now, who are your looking for?";
+	
+	print start_form;
+	
+	print "<table>\n";
+
+	print "<tr>";
+	print td 'Age:';
+	print td p "min", (textfield('age_min')),
+		p "max", textfield('age_max');
+	print "</tr>\n";
+	
+	print "<tr>";
+	print td 'Height:';
+	print td p "min", (textfield('height_min')), "m",
+		p "max", textfield('height_max'), "m";
+	print "</tr>\n";
+	
+	print "<tr>";
+	print td 'Weight:';
+	print td p "min", (textfield('weight_min')), "kg",
+		p "max", textfield('weight_max'), "kg";
+	print "</tr>\n";
+
+	
+	print "<tr>";
+	print "<td valign = 'top'>", 'Hair Colours:';
+	print "</td>";
+	print td (textarea(-name=>'hair_colours', 
+						-rows=>"10",
+						-cols=>"25"));
+	print "</tr>\n";
+	
+	print "<tr>";
+	print td "Gender";
+	print '<td> <select name = "gender">', "\n";
+	print option ("");
+	print option ("Male");
+	print option ("Female");
+	print option ("Other");
+	print "</select> </td>";
+	
+	print hidden('new_username');
+		
+	print "<tr> <td></td> <td>";
+	print center submit(-name=>'new_preferences',
+						-value=>'Submit');
+	print "</td> </tr>\n";
+	print "</table>\n";
+
+	print end_form;
+	
+	endPage();
 
 
 }
@@ -992,7 +1081,7 @@ sub generateUserHtml
 
 	print '</table>';
 	#extract photo file names and embed them in the page
-	if(defined $udata{"otherPhotos"})
+	if($udata{"otherPhotos"} ne "")
 	{
 		print '<div id = "images_hz">';
 		print h2 "Other Photos";
@@ -1100,7 +1189,7 @@ sub generateNMatches
 		my $userURL = $homeUrl."?$sortedMatches[$i]";
 		my %udata = generateUserData($sortedMatches[$i]);
 		print "<li>";
-		printImageLink($userURL, $udata{"profileImage"}, "50");
+		printImageLink($userURL, $udata{"profileImage"}, "100");
 		print p;
 		printLink($userURL, "$sortedMatches[$i]");
 		
@@ -1135,7 +1224,7 @@ sub getUserList
 
 
 #create user profile based on submitted parameters
-sub createUser
+sub createNewProfile
 {
 	my ($username) = @_;
 	my $ufolder = $dataFolder.$username;
@@ -1149,7 +1238,7 @@ sub createUser
 	foreach my $field (param())
 	{
 		
-		if(param($field) ne "" && $field ne "newAccount")
+		if(param($field) ne "" && $field ne "new_profile")
 		{
 			#field is nonempty.
 			#store it in the standard format
@@ -1223,6 +1312,71 @@ sub createUser
 	updateSession();
 
 }
+
+
+#create a new preference file
+sub createNewPreferences
+{
+	my ($username) = @_;
+	my $ufolder = $dataFolder.$username;
+	my $upreferenceFile = $ufolder."/".$defaultPreferenceFilename;
+	my @lines = ();
+	open NEWUSERPREFERENCES, "> $upreferenceFile" or die ("fuck");
+
+	
+	if (param ('hair_colours') ne "")
+	{
+		print NEWUSERPREFERENCES "hair_colours:\n";
+		@lines = split(/\n/, param('hair_colours'));
+		foreach my $line (@lines)
+		{
+			print NEWUSERPREFERENCES "\t$line\n";
+		}
+		
+	}
+	
+	if (param('gender') ne "")
+	{
+		print NEWUSERPREFERENCES "gender:\n";
+		print NEWUSERPREFERENCES "\t", param('gender'), "\n";
+	}
+	
+	if (param('age_min') ne "" && param('age_max') ne "")
+	{
+		print NEWUSERPREFERENCES "age:\n";
+		print NEWUSERPREFERENCES "\t","min:\n";
+		print NEWUSERPREFERENCES "\t\t", param('age_min'), "\n";
+		print NEWUSERPREFERENCES "\t","max:\n";
+		print NEWUSERPREFERENCES "\t\t", param('age_max'), "\n"
+	}
+	
+	if (param('weight_min') ne "" && param('weight_max') ne "")
+	{
+		print NEWUSERPREFERENCES "weight:\n";
+		print NEWUSERPREFERENCES "\t","min:\n";
+		print NEWUSERPREFERENCES "\t\t", param('weight_min'), "kg\n";
+		print NEWUSERPREFERENCES "\t","max:\n";
+		print NEWUSERPREFERENCES "\t\t", param('weight_max'), "kg\n"
+	}
+	if (param('height_min') ne "" && param('height_max') ne "")
+	{
+		print NEWUSERPREFERENCES "height:\n";
+		print NEWUSERPREFERENCES "\t","min:\n";
+		print NEWUSERPREFERENCES "\t\t", param('height_min'), "m\n";
+		print NEWUSERPREFERENCES "\t","max:\n";
+		print NEWUSERPREFERENCES "\t\t", param('height_max'), "m\n"
+	}
+
+	close NEWUSERPREFERENCES;
+	chmod 0755, $upreferenceFile;
+
+	$globalSessionData{"current_user"} = $username;
+	$globalSessionData{"authenticated"} = 0;
+
+	updateSession();
+
+}
+
 
 #Grab profile data for given username.
 #takes 2 arguments, 
