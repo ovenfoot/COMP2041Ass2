@@ -10,11 +10,8 @@ use File::Copy;
 use Time::Local;
 
 
-#TODO1: get a decent top bar working
 #TODO2: Multiple image upload
 #TODO3: EDIT PROFILE
-#TODO4: profile 'statement'
-#TODO5: recover password
 #######################################################################
 #		GLOBAL VAR INITIALISATION
 #######################################################################
@@ -45,6 +42,7 @@ $privateFields{"profileImage"} = 1;
 $privateFields{"username"} = 1;
 $privateFields{"otherPhotos"} = 1;
 $privateFields{"path"} = 1;
+$privateFields{"personal_text"} = 1;
 
 #hash of predefined 'preference variables'
 #any info fields outside of this list will be matched according
@@ -69,28 +67,16 @@ $maxWeight = 5;
 #if session is not currently authenticated, redirect user to login screen
 #if session is authenticated, then allow for more complex use of site
 
-#first, new profile generation
-if (defined param('new_profile'))
-{
-	#create new profile file and get the uesr to enter prefernces
-	createNewProfile(param('new_username'));
-	generateNewUserPreferencesHTML();
-}
-elsif(defined param('new_preferences'))
-{
-	#create new prefernce file and show the user their page
-	createNewPreferences(param('new_username'));
-	generateUserHtml(param('new_username'));
 
-}
-elsif ($ENV{'QUERY_STRING'} eq "lostPass")
+if ($ENV{'QUERY_STRING'} eq "lostPass")
 {
+	#password recovery query
 	generatePasswordRecoveryHTML();
 }
 elsif (checkSession() != 0)
 {
 	#session is not authenticated
-
+	#prompt for login details and try to authenticate
 	if(defined(param ("uname")) && defined(param("pass")) )
 	{
 		#if params defined, user has attempted to log in
@@ -117,7 +103,28 @@ elsif (checkSession() != 0)
 	}
 	elsif($ENV{'QUERY_STRING'} eq "|newUser")
 	{
-		generateNewUserProfileHTML();
+		#first, new profile generation
+		#beginPage();
+		#printAllParams();
+		if(defined param('new_preferences'))
+		{
+			#create new prefernce file and show the user their page
+			createNewPreferences(param('new_username'));
+			generateUserHtml(param('new_username'));
+
+		}
+		elsif (defined param('new_profile'))
+		{
+			#create new profile file and get the uesr to enter prefernces
+			createNewProfile(param('new_username'));
+			generateNewUserPreferencesHTML();
+		}
+		
+		else
+		{
+			generateNewUserProfileHTML();
+		}
+		
 	}
 	else
 	{
@@ -132,17 +139,15 @@ elsif ($ENV{'QUERY_STRING'} eq "" )
 }
 elsif($ENV{'QUERY_STRING'} eq "myMatches")
 {
+	#user hsa requested for their matches to be shown
 	my $currUser = $globalSessionData{"current_user"};
 	generateNMatches($currUser, 5);
 }
 elsif($ENV{"QUERY_STRING"} =~ /\%7CuserQuery\=(.+)/)
 {
+	#search result requested. process search string and go
 	#note that for some reason the bar character '|' comes up as '%7C' because html is retard
 	$userSearchQuery = $1;
-	# @matchedUsers = searchForUsers($userSearchQuery);
-	# debugPrint($userSearchQuery);
-	# debugPrint($#matchedUsers);
-	# debugPrint(@matchedUsers);
 	generateSearchResultsHTML($userSearchQuery);
 
 }
@@ -173,16 +178,31 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 		my $nthPage = $1;
 		generateNUserList($profPerPage, $nthPage);
 	}
-	elsif($query eq "newUser")
-	{
-		generateNewUserProfileHTML();
-	}
-
 	elsif($query eq "preferenceTest")
 	{
 		param('new_username', "ovenfoot");
 		generateNewUserPreferencesHTML();
 		
+	}
+	elsif($query eq "editProfile")
+	{
+		if (defined param('new_profile'))
+		{
+			debugPrint ("yay!");
+		}
+		else
+		{
+			generateEditProfileHTML($globalSessionData{'current_user'});
+		}
+		#debugPrint("Whassup");
+	}
+	elsif($query eq "newUser")
+	{
+		$globalSessionData{'current_user'} = "";
+		$globalSession{'authenticated'} = -1;
+		updateSession();
+		generateNewUserProfileHTML();
+
 	}
 }
 else
@@ -459,8 +479,12 @@ sub checkSession
 
 		foreach my $line (<otherFile>)
 		{
+			chomp $line;
 			@data = split(/\,/, $line);
-			$otherSession{$data[0]} = $data[1];
+			if (defined $data[0] && defined $data[1])
+			{
+				$otherSession{$data[0]} = $data[1];
+			}
 		}
 		
 		close (otherFile);
@@ -483,6 +507,7 @@ sub checkSession
 
 	foreach my $line (<sFile>)
 	{
+		chomp $line;
 		@data = split(/\,/, $line);
 		$globalSessionData{$data[0]} = $data[1];
 	}
@@ -694,6 +719,189 @@ sub generatePasswordRecoveryHTML
 	}
 }
 
+
+sub generateEditProfileHTML
+{
+	my ($username) = @_;
+	my %udata = generateUserData($username);
+	my $birthdayString = "";
+	#parse the data and make sure that the | delimeter is replaced by \n
+	foreach my $key (keys %udata)
+	{
+		$udata{$key} = join("\n", split (/\|/, $udata{$key}));
+	}
+	
+	beginPage();
+
+	#printAllParams();
+
+	print h1 "Hello, $username!";
+	print h2 "Tell us a bit about yourself!";
+	print h3 "(Feel free to leave out the more private details!)";
+	#print p param('height');
+
+	print start_form;
+	
+	
+	print p "Sum yourself up in a few words";
+	print p (textarea(-name=>'personal_text', 
+						-rows=>"10",
+						-cols=>"50"
+						-value=>$udata{'personal_text'}));
+	
+	
+	print "<table style = table-layout:fixed>\n";	
+	
+	################ BASIC INFO ###################
+	print "<tr> <td>", h2 "Basic Info", "</td></tr>";
+
+	# print "<tr>";
+	# print td 'Profle Picture:';
+	# print td filefield(-name => "profileImage");
+	# print "</tr>\n";
+
+	print "<tr>";
+	print td 'Name:';
+	print td (textfield(-name=>'name',
+			-value=>$udata{'name'}));
+	print "</tr>\n";
+
+	print "<tr>";
+	print td 'Height:';
+	print td ((textfield(-name=>'height', 
+		-value=>$udata{'height'})), "m");
+	print "</tr>\n";
+
+	print "<tr>";
+	print td 'Hair colour:';
+	print td (textfield(-name=>'hair_colour',
+		-value=>$udata{'hair_colour'}));
+	print "</tr>\n";
+
+	print "<tr>";
+	print td 'Weight:';
+	print td ((textfield(-name=>'weight',
+		-value=>$udata{'weight'})), "kg");
+	print "</tr>\n";
+
+	print "<tr>";
+	print td "Gender";
+	print '<td> <select name = "gender", value = Male>', "\n";
+	print option ("$udata{'gender'}");
+	print option ("");
+	print option ("male");
+	print option ("female");
+	print option ("other");
+	print "</select> </td>";
+
+	print "</tr>\n";
+
+	
+	#parse the birthday for default value to be set
+	if ($udata{'birthdate'} =~ /(\d\d\d\d)\/(\d\d)\/(\d\d)/)
+	{
+		$birthdayString = $1."-".$2."-".$3;
+	}
+	elsif ($udata{'birthdate'} =~ /(\d\d)\/(\d\d)\/(\d\d\d\d)/)
+	{
+		$birthdayString = $3."-".$2."-".$1;
+	}
+	
+	print "<tr>";
+	print td 'Birthday:';
+	print td "<input type=\"date\" name = \"birthdate\" value = \"$birthdayString\">";
+	print "</tr>\n";
+
+
+	########### STUDY DEETS ####################
+	print "<tr> <td>", h2 "Study details", "</td></tr>";
+	print "<tr>";
+	print td 'Degree: ';
+	print td (textfield(-name=>'degree',
+		-value=>$udata{'degree'}));
+	print "</tr>\n";
+
+	print "<tr>";
+	print "<td valign = 'top'>", 'Courses';
+	print "</td>";
+	print td (textarea(-name=>'courses', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$udata{'courses'}));
+	print "</tr>\n";
+
+	################INTERESTS AND HOBBIES #################
+
+	print "<tr> <td>", h2 "Interests and hobbies", "</td></tr>";
+
+	print "<tr>";
+	print "<td valign = 'top'>", 'Favourite Hobbies:';
+	print "</td>";
+	print td (textarea(-name=>'favourite_hobbies', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$udata{'courses'}));
+	print "</tr>\n";
+
+	print "<tr>";
+	print "<td valign = 'top'>", 'Favourite Books:';
+	print "</td>";
+	print td (textarea(-name=>'favourite_books', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$udata{'favourite_books'}));
+	print "</tr>\n";
+
+
+	print "<tr>";
+	print "<td valign = 'top'>", 'Favourite TV Shows:';
+	print "</td>";
+	print td (textarea(-name=>'favourite_TV_shows', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$udata{'favourite_TV_shows'}));
+	print "</tr>\n";
+
+
+	print "<tr>";
+	print "<td valign = 'top'>", 'Favourite Movies:';
+	print "</td>";
+	print td (textarea(-name=>'favourite_movies', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$udata{'favourite_movies'}));
+	print "</tr>\n";
+
+	print "<tr>";
+	print "<td valign = 'top'>", 'Favourite Bands:';
+	print "</td>";
+	print td (textarea(-name=>'favourite_bands', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$udata{'favourite_bands'}));
+	print "</tr>\n";
+
+	
+	param('username', $username);
+	param('password', $password);
+	param('email', $email);
+	print hidden('password');
+	print hidden('email');
+	print hidden('username');
+	print hidden('email');
+	#print hidden('new_profile');
+
+
+	print "<tr> <td></td> <td>";
+	print center submit(-name=>'new_profile',
+						-value=>'Submit');
+	print "</td> </tr>\n";
+	print "</table>\n";
+
+	print end_form;
+	
+}
+
 #new user creation page
 sub generateNewUserProfileHTML
 {
@@ -744,12 +952,22 @@ sub generateNewUserProfileHTML
 		print h1 "Hello, $username!";
 		print h2 "Tell us a bit about yourself!";
 		print h3 "(Feel free to leave out the more private details!)";
-		print p param('height');
+		#print p param('height');
 
 		print start_form;
 		
-		print "<table>\n";
-
+		
+		print p "Sum yourself up in a few words";
+		print p (textarea(-name=>'personal_text', 
+							-rows=>"10",
+							-cols=>"50"));
+		
+		
+		print "<table style = table-layout:fixed>\n";
+		
+		
+		
+		
 		################ BASIC INFO ###################
 		print "<tr> <td>", h2 "Basic Info", "</td></tr>";
 
@@ -765,7 +983,7 @@ sub generateNewUserProfileHTML
 
 		print "<tr>";
 		print td 'Height:';
-		print td (textfield('height')), "m";
+		print td ((textfield('height')), "m");
 		print "</tr>\n";
 
 		print "<tr>";
@@ -775,7 +993,7 @@ sub generateNewUserProfileHTML
 
 		print "<tr>";
 		print td 'Weight:';
-		print td (textfield('weight')), "kg";
+		print td ((textfield('weight')), "kg");
 		print "</tr>\n";
 
 		print "<tr>";
@@ -876,7 +1094,7 @@ sub generateNewUserProfileHTML
 
 		print end_form;
 
-		print p param('hair_color');
+		#print p param('hair_color');
 		
 		
 		
@@ -887,9 +1105,6 @@ sub generateNewUserProfileHTML
 
 		endPage();
 	}
-
-
-
 }
 
 
@@ -984,7 +1199,7 @@ sub generateLoginPage
 		print "\n",'<p style = "color:#FF0000"> Wrong password or username! </p>', "\n";
 	}
 	print start_form,
-        'Enter login: ', p textfield('uname'), p "<br>\n",
+        'Enter login: ', p textfield(-name=>'uname'), p "<br>\n",
         ' Enter password: ', p password_field('pass'),p "<br>\n",
         submit('Login'),
         end_form;
@@ -1147,6 +1362,12 @@ sub generateUserHtml
 	#go through each data field and print values
 	#check if field is private
 	print h1 "Personal Details";
+	
+	if(defined $udata{"personal_text"})
+	{
+		print h2 "Personal Text";
+		print p $udata{"personal_text"};
+	}
 	foreach my $field (sort keys %udata)
 	{
 		
@@ -1217,6 +1438,14 @@ sub generateUserHtml
 		}
 		print p;
 		print '</div>';
+	}
+	
+	#if you are viewing your own profile, add an option to edit it
+	#chomp $globalSessionData{'current_user'};
+	if ($globalSessionData{'current_user'} eq $uname)
+	{
+		print h2;
+		printLink($homeUrl."?|editProfile", "Edit Profile");
 	}
 	
 	endPage();
@@ -1429,10 +1658,10 @@ sub createNewProfile
 	close NEWUSERPROFILE;
 	chmod 0755, $uprofileFile;
 
-	$globalSessionData{"current_user"} = $username;
-	$globalSessionData{"authenticated"} = 0;
+	#$globalSessionData{"current_user"} = $username;
+	#$globalSessionData{"authenticated"} = 0;
 
-	updateSession();
+	#updateSession();
 
 }
 
@@ -1547,6 +1776,7 @@ sub generateUserData
 		
 		@tabspaces = $line =~ m/^\t+/g;
 		
+		$line =~ s/^\t+//g;
 		if ($#tabspaces<0) 
 		{
 			#tabspaces less than one means a field has been added
@@ -1640,7 +1870,8 @@ sub matchUsers
 
 	if (defined $u1Pref{"gender"} && defined $u2Data{"gender"})
 	{
-		if ($u1Pref{"gender"} ne $u2Data{"gender"})
+		
+		if (lc$u1Pref{"gender"} ne lc$u2Data{"gender"})
 		{
 			$score = $score*100;
 		}
