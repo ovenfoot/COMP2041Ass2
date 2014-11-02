@@ -44,7 +44,7 @@ $privateFields{"username"} = 1;
 $privateFields{"otherPhotos"} = 1;
 $privateFields{"path"} = 1;
 $privateFields{"personal_text"} = 1;
-
+$privateFields{"extraImge"} = 1;
 #hash of predefined 'preference variables'
 #any info fields outside of this list will be matched according
 #to occurance between the two users.
@@ -248,8 +248,6 @@ else
 	$currProfile = $ENV{'QUERY_STRING'};
 	generateUserHtml($currProfile);
 }
-
-
 
 
 
@@ -1861,7 +1859,7 @@ sub createNewProfile
 				}
 				elsif ($field eq "extraImage")
 				{
-					debugPrint("uploading Another Image");
+					#debugPrint("uploading Another Image");
 					$filename = param ("extraImage");
 					#first count the number of photos, and append to the end;
 					opendir ((my $udir), $ufolder);
