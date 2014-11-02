@@ -15,6 +15,11 @@ body {
 	padding-bottom: 10px;
 }
 
+
+table.fixed { table-layout:fixed; }
+table.fixed td { overflow: hidden; }
+
+
 h1, h2, h3, h4, h5, h6, p, pre, blockquote, label, ul, ol, dl, 
 fieldset, address { margin:0.75em 0;}
 

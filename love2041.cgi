@@ -188,7 +188,8 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	{
 		if (defined param('new_profile'))
 		{
-			debugPrint ("yay!");
+			createNewProfile(param('username'));
+			generateUserHtml(param('username'));
 		}
 		else
 		{
@@ -198,6 +199,7 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	}
 	elsif($query eq "newUser")
 	{
+		#navigating to newuser whilst logged in will logout hte current person
 		$globalSessionData{'current_user'} = "";
 		$globalSession{'authenticated'} = -1;
 		updateSession();
@@ -755,10 +757,10 @@ sub generateEditProfileHTML
 	################ BASIC INFO ###################
 	print "<tr> <td>", h2 "Basic Info", "</td></tr>";
 
-	# print "<tr>";
-	# print td 'Profle Picture:';
-	# print td filefield(-name => "profileImage");
-	# print "</tr>\n";
+	print "<tr>";
+	print td 'Profle Picture:';
+	print td filefield(-name => "profileImage");
+	print "</tr>\n";
 
 	print "<tr>";
 	print td 'Name:';
@@ -1353,21 +1355,33 @@ sub generateUserHtml
 
 	print h1 "$uname";
 
-	#print profile picture from path stored in hash
-	$imagePath = $udata{"profileImage"};
-	print "<img src=$imagePath width = 250><p>\n";	
+	if ($globalSessionData{'current_user'} eq $uname)
+	{
+		print h2;
+		printLink($homeUrl."?|editProfile", "Edit Profile");
+		print "</h2>";
+	}
 	
-	print '<table>';
+	#print profile picture from path stored in hash
+
+	if (defined $udata{"profileImage"})
+	{	
+		$imagePath = $udata{"profileImage"};
+		print p "<img src=$imagePath width = 250><p>\n";	
+	}
+	
+	if(defined $udata{"personal_text"})
+	{
+		print p $udata{"personal_text"};
+	}
+	
+	print '<table class = "fixed"> <col width = "300"> <col width = "300">';
 	print '<td valign = top >';
 	#go through each data field and print values
 	#check if field is private
 	print h1 "Personal Details";
 	
-	if(defined $udata{"personal_text"})
-	{
-		print h2 "Personal Text";
-		print p $udata{"personal_text"};
-	}
+	
 	foreach my $field (sort keys %udata)
 	{
 		
@@ -1442,11 +1456,7 @@ sub generateUserHtml
 	
 	#if you are viewing your own profile, add an option to edit it
 	#chomp $globalSessionData{'current_user'};
-	if ($globalSessionData{'current_user'} eq $uname)
-	{
-		print h2;
-		printLink($homeUrl."?|editProfile", "Edit Profile");
-	}
+	
 	
 	endPage();
 
