@@ -31,6 +31,7 @@ $WORST_SCORE = 10000;
 
 
 #create a hash of private fields
+#these wont show on public profile pages
 %privateFields = ();
 $privateFields{"uname"} = 1;
 $privateFields{"password"} = 1;
@@ -119,7 +120,6 @@ elsif (checkSession() != 0)
 			createNewProfile(param('new_username'));
 			generateNewUserPreferencesHTML();
 		}
-		
 		else
 		{
 			generateNewUserProfileHTML();
@@ -190,7 +190,10 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 		if (defined param('new_profile'))
 		{
 			createNewProfile(param('username'));
+			#beginPage();
+			#printAllParams();
 			generateUserHtml(param('username'));
+			
 		}
 		else
 		{
@@ -233,7 +236,6 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 			generateSendMessageHTML($1);
 		}
 	}
-	
 	else
 	{
 		debugPrint("THIS IS THE MOST BORING 404 PAGE EVER");
@@ -413,21 +415,12 @@ sub endPage
 #on logout, delete session data and print logout page
 sub logout
 {
-	
 	my $ip = $ENV{"REMOTE_ADDR"};
 	$ip =~ s/\./\_/g;
 	my $sessionFile = "$ip.acc";
 
 	unlink $sessionFile;
 	$globalSessionData{"authenticated"} = -1;
-	
-	# beginPage();
-		# print h2 "logged out";
-	# print p;
-	# printLink($homeUrl, "Go home");
-	# endPage();
-
-
 }
 
 #prints debug string to html
@@ -445,8 +438,6 @@ sub debugPrint
 	print end_html;
 
 }
-
-
 
 #create a new session file
 #session files used for authentication
@@ -563,8 +554,6 @@ sub checkSession
 	return $globalSessionData{"authenticated"};
 }
 
-
-
 #captilises first letter of each word in a string
 #removes underscores where not necessary
 sub prettyInput
@@ -671,6 +660,10 @@ sub printNewLogin
     print 'Email: ', p textfield('email'), p "<br>\n";
     print submit('submit');
     print end_form;
+	
+	print h2;
+	printLink($homeUrl, "Back to login");
+	print "</h2>";
     endPage("noauth");
 }
 
@@ -875,7 +868,7 @@ sub generateEditPreferencesHTML
 	print td p "min", (textfield(-name=>'age_min',
 						-value=>"$age_min")),
 		p "max", textfield(-name=>'age_max',
-						-value=>"$age_min");
+						-value=>"$age_max");
 	print "</tr>\n";
 	
 	print "<tr>";
@@ -946,7 +939,6 @@ sub generateEditProfileHTML
 	}
 	
 	beginPage();
-
 	print h1 "Hello, $username!";
 	print h2 "Tell us a bit about yourself!";
 	print h3 "(Feel free to leave out the more private details!)";
@@ -1021,7 +1013,12 @@ sub generateEditProfileHTML
 	print td 'Birthday:';
 	print td "<input type=\"date\" name = \"birthdate\" value = \"$birthdayString\">";
 	print "</tr>\n";
-
+	
+	print "<tr>";
+	print td 'Extra Image:';
+	print td filefield(-name => "extraImage");
+	print "</tr>\n";
+	
 
 	########### STUDY DEETS ####################
 	print "<tr> <td>", h2 "Study details", "</td></tr>";
@@ -1050,7 +1047,7 @@ sub generateEditProfileHTML
 	print td (textarea(-name=>'favourite_hobbies', 
 						-rows=>"10",
 						-cols=>"25",
-						-value=>$udata{'courses'}));
+						-value=>$udata{'favourite_hobbies'}));
 	print "</tr>\n";
 
 	print "<tr>";
@@ -1093,9 +1090,9 @@ sub generateEditProfileHTML
 
 	
 	param('username', $username);
-	param('password', $password);
+	param('new_password', $udata{'password'});
 	param('email', $email);
-	print hidden('password');
+	print hidden('new_password');
 	print hidden('email');
 	print hidden('username');
 	print hidden('email');
@@ -1156,7 +1153,13 @@ sub generateNewUserProfileHTML
 			printNewLogin("Invalid Email!");
 			return;
 		}
-
+		
+		#check for no spaces in username
+		if ($username =~ /\s+/)
+		{
+			printNewLogin("Usernames must be alphanumeric with no white spaces");
+			return;
+		}
 		beginPage("nosearch");
 
 		print h1 "Hello, $username!";
@@ -1220,6 +1223,11 @@ sub generateNewUserProfileHTML
 		print "<tr>";
 		print td 'Birthday:';
 		print td '<input type="date" name = "birthdate">';
+		print "</tr>\n";
+		
+		print "<tr>";
+		print td 'Extra Image (you can upload more later):';
+		print td filefield(-name => "extraImage");
 		print "</tr>\n";
 
 
@@ -1310,7 +1318,6 @@ sub generateNewUserProfileHTML
 		endPage();
 	}
 }
-
 
 #new user preference creation page
 #big form for users to specify their dating preferences
@@ -1656,7 +1663,7 @@ sub generateUserHtml
 		foreach my $photo (@otherPhotos)
 		{	
 			$imagePath = $udata{"path"}.$photo;
-			print "<img src=$imagePath alt = ", '""', " >\n";
+			print "<img src=$imagePath width = 250 alt = ", '""', " >\n";
 		}
 		print p;
 		print '</div>';
@@ -1696,8 +1703,6 @@ sub generateSearchResultsHTML
 			print ul;
 			printLink($userURL, $matchedUser);
 			print "\n";
-
-
 		}
 	}	
 	endPage();
@@ -1748,10 +1753,8 @@ sub generateNMatches
 		print p;
 		printLink($userURL, "$sortedMatches[$i]");
 		
-		
 		print "</li>\n"
 	}
-
 	print "</ol>\n";
 	endPage();
 }
@@ -1789,7 +1792,22 @@ sub createNewProfile
 	chmod 0755, $ufolder;
 	open NEWUSERPROFILE, "> $uprofileFile" or die ("fuck");
 	#debugPrint("opening $uprofileFile");
+	#beginPage();
 	#printAllParams();
+	
+	# if(!defined param('new_password'))
+	# {
+		# debugPrint ($username);
+		# %uOldData = generateUserData($username);
+		# foreach my $key (keys %uOldData)
+		# {
+			# debugPrint($key);
+		# }
+		# debugPrint("having to get some password stuff, password is $uOldData{'password'}");
+		# print NEWUSERPROFILE "password:\n";
+		# print NEWUSERPROFILE "\t".$uOldData{'password'}."\n";
+	# }
+	
 	foreach my $field (param())
 	{
 		
@@ -1841,10 +1859,34 @@ sub createNewProfile
 					}
 					close PROFILEIMAGE;
 				}
+				elsif ($field eq "extraImage")
+				{
+					debugPrint("uploading Another Image");
+					$filename = param ("extraImage");
+					#first count the number of photos, and append to the end;
+					opendir ((my $udir), $ufolder);
+					my @otherPhotos = grep{/photo\d*\.jpg/} readdir $udir;
+					closedir $udir;
+		
+					#new filename is photo file + 1;
+					my $otherImageFile = $ufolder."/photo".($#otherPhotos+1).".jpg";
+					#debugPrint("trying to write to $otherImageFile");
+					my $profileImageHandle = upload("otherImageFile");
+					open OTHERIMAGE, "> $otherImageFile";
+					#binmode PROFILEIMAGE;
+					while($bytesread = read($filename, $buffer, 1024))
+					{
+						print OTHERIMAGE $buffer;
+						$bytesread = 0;
+					}
+					close OTHERIMAGE;
+				}
 				print NEWUSERPROFILE "\t$value\n";
 			}
 		}
 	}
+	
+	
 
 	close NEWUSERPROFILE;
 	chmod 0755, $uprofileFile;
