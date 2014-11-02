@@ -1437,7 +1437,9 @@ sub generateUserHtml
 	%udata = generateUserData($uname);
 	if (! $udata{"found"})
 	{
-		print "fuck cannot find $uname\n";
+		print h1 "404. HOW DID YOU GET HERE?\n";
+		
+		endPage();
 		return (-1);
 	}
 
