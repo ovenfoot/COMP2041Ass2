@@ -420,13 +420,13 @@ sub logout
 	unlink $sessionFile;
 	$globalSessionData{"authenticated"} = -1;
 }
-
+##
 #prints debug string to html
 sub debugPrint
 {
 	my (@debugStrings) = @_;
 	print header;
-	print start_html(-title=>'LOVE2041 MOTHERFUCKERS',
+	print start_html(-title=>'LOVE2041 MOTHERS',
 								-bgcolor=>'CCFF33');
 
 	foreach $debugString (@debugStrings)
@@ -1893,7 +1893,7 @@ sub createNewPreferences
 	my $ufolder = $dataFolder.$username;
 	my $upreferenceFile = $ufolder."/".$defaultPreferenceFilename;
 	my @lines = ();
-	open NEWUSERPREFERENCES, "> $upreferenceFile" or die ("fuck");
+	open NEWUSERPREFERENCES, "> $upreferenceFile" or die ("CANNOT OPEN USER PREFERENCE FILE");
 
 	
 	if (param ('hair_colours') ne "")
