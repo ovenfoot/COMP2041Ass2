@@ -1787,24 +1787,19 @@ sub createNewProfile
 	my $uprofileFile = $ufolder."/".$defaultProfileFilename;
 	mkdir $ufolder;
 
-	chmod 0755, $ufolder;
-	open NEWUSERPROFILE, "> $uprofileFile" or die ("fuck");
-	#debugPrint("opening $uprofileFile");
-	#beginPage();
-	#printAllParams();
 	
-	# if(!defined param('new_password'))
-	# {
-		# debugPrint ($username);
-		# %uOldData = generateUserData($username);
-		# foreach my $key (keys %uOldData)
-		# {
-			# debugPrint($key);
-		# }
-		# debugPrint("having to get some password stuff, password is $uOldData{'password'}");
-		# print NEWUSERPROFILE "password:\n";
-		# print NEWUSERPROFILE "\t".$uOldData{'password'}."\n";
-	# }
+	#sanity check height and weight
+	if(!(param ('height') =~ /[\d\.]+(m)*/))
+	{
+		param('height', "");
+	}
+	
+	if(!(param ('weight') =~ /[\d\.]+(kg)*/))
+	{
+		param('weight', "");
+	}
+	chmod 0755, $ufolder;
+	open NEWUSERPROFILE, "> $uprofileFile" or die ("NO USER");
 	
 	foreach my $field (param())
 	{
