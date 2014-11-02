@@ -243,18 +243,48 @@ sub beginPage
 {
 	my ($flag) = @_;
 	print header;
-	print start_html(-title=>'love doge gofuckyourself!');
+	print start_html(-title=>'love doge go');
 
 	print param("unameSearch");
 
 	print "<link rel='stylesheet' type='text/css' href='style.css'>\n";
 
-	print p $ENV{"REMOTE_ADDR"};
-
+	
+	#print p $ENV{"REMOTE_ADDR"};
+	print '<div id = "header">';
+	
 	if ($globalSessionData{"authenticated"} == 0 && !defined $flag)
 	{
+		
+		print "<center>";
+		print h1 "Welcome to the den of the love doge";
+		print h2 "We hope you enjoy your stay";
+		print "</center>";
+		print "<table width = 750 padding-top = 20> <tr>\n";
+		
+		print "<td><center>";
+		print a;
+		printLink($homeUrl, "Go home");
+		print "</center> </td> \n";
+		
+		#link to go to your profile
+		print "<td>"; 
+		printLink ($homeUrl."?".$globalSessionData{"current_user"}, "My Profile");
+		print "</td>";
+
+		
+		#logout
+		print "<td>";
+		printLink($homeUrl."?|logout", "Log Out");
+		print "</td>\n";
+		
+		print '<td align = "right">';
 		printSearchForm();
+		print "</td>\n";
+		print "</tr></table>\n";
 	}
+	
+	print "</div>";
 	#print p $ENV{"SERVER_PORT"};
 
 }
@@ -276,7 +306,7 @@ sub endPage
 	#if we're in an authenticated session then print logout details
 	if ($globalSessionData{"authenticated"} == 0 && !defined $errorFlag)
 	{
-		print "<center>";
+		
 		
 		#back to last browse button
 		if (!defined $globalSessionData{"last_profile_browse"})
@@ -284,21 +314,33 @@ sub endPage
 			$globalSessionData{"last_profile_browse"} = 0;
 		}
 		$lastURL = $homeUrl."?|userlist".$globalSessionData{"last_profile_browse"};
+		
+		print "<center>\n";
+		print "<table>\n";
+		print "<tr><td>";
 		print a;
 		printLink($lastURL, "Back to User List");
-
+		print "</td>";
+		
 		#redundant home button 
+		print "<td><center>";
 		print a;
-		printLink($homeUrl, "Go home    ");
+		printLink($homeUrl, "Go home");
+		print "</center> </td> \n";
+		
 		#logout
+		print "<td>";
 		printLink($homeUrl."?|logout", "Log Out");
+		print "</td> </tr>\n";
+		
 		
 		#link to go to your profile
-		print "<p> You are currently logged in as "; 
+		print "<tr><td> </td> <td> You are currently logged in as "; 
 		printLink ($homeUrl."?".$globalSessionData{"current_user"}, $globalSessionData{"current_user"});
-		print "</p>";
+		print "</td>  <td> </td>  </tr>\n";
 
-		print "</center>";
+		print "</table>\n";
+		print "</center>\n";
 		updateSession();
 	}
 
@@ -596,6 +638,7 @@ sub generatePasswordRecoveryHTML
 		beginPage("nosearch");
 		if (defined $udata{"email"})
 		{
+			#test
 			my $to = $udata{"email"};
 			my $from = 'tngu211@cse.unsw.edu.au';
 			my $subject = 'Love Doge Password Reset';

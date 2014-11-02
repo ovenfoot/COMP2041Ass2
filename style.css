@@ -1,7 +1,3 @@
-/*
-	Style sheet taken from DreamTemplate.com with the caveat that Dreamtemplate be printed at the bottom of eahc page
-*/
-
 * {
 	padding:0;
 	margin:0;
@@ -9,28 +5,24 @@
 
 body {
 	color: #333333;
-	background-color:#58FAF4;
-	font-family: Comic Sans MS, Papyrus, Comic Sans MS, sans-serif;
-	font-size:0.9em;
+	background-color:#FFFFFF;
+	font-family: Comic Sans MS, Comic Sans MS, Comic Sans MS, sans-serif;
+	font-size:0.83em;
 	margin:20px auto;
-	width:900px;
+	width:760px;
 	padding-left:10px;
 	padding-right:10px;
 	padding-bottom: 10px;
 }
 
 h1, h2, h3, h4, h5, h6, p, pre, blockquote, label, ul, ol, dl, 
-fieldset, address { margin:0.2em 0;}
+fieldset, address { margin:0.75em 0;}
 
-h1 {font-size:2.0em; font-family: Papyrus}
+h1 {font-size:1.67em;}
 
-h2 {font-size:1.5em;
-padding-top:10px;
-}
+h2 {font-size:1.39em;}
 
-h3 {
-	font-size:1em;
-	font-style:normal;
+h3 {font-size:1.2em;
 	padding-top:10px;
 }
 
@@ -44,19 +36,16 @@ li, dd {
 
 a {
 	color: #4E85BD;
-	background-color: #C8FE2E;
+	background-color: #FFFFFF;
 	font-weight: normal;
 	text-decoration: none;
 }
 
 a:hover {
 	color: #33587D;
-	background-color: #FA58F4;
+	background-color: #FFFFFF;
 	font-weight: normal;
 	text-decoration: underline;
-}
-th,td{
-	padding:15px;
 }
 
 #title {
@@ -154,44 +143,70 @@ ul#nav a.selected:visited { background: #666666; color: #FFFFFF; }
 }
 
 #footer {
-	color:#000000;
-	background-color:#C8FE2E;
+	color:#909090;
+	background-color:#000099;
+	border-top:1px solid #CCCCCC;
+	font-size:90%;
+	line-height:1.5em;
+	width: 760px;
+	clear:both;
+}
+
+#footer	a {
+	color:#FFFFFF;
+	background-color:#000099;
+	text-decoration: none;
+	font-weight: bold;
+}
+
+#footer	a:hover {
+	color:#00FF00;
+	background-color:#000099;
+	font-weight: bold;
+	text-decoration: underline;
+}
+
+#header {
+	color:#FFFFFF;
+	background-color:#000099;
 	border-top:1px solid #CCCCCC;
 	font-size:100%;
 	line-height:1.5em;
 	width: 760px;
 	clear:both;
-	padding-top: 
+	padding-top: 25px;
+	padding-bottom: 25px;
 }
-
-#footer	a {
-	color:#4E85BD;
-	background-color:#C8FE2E;
+#header form{
+	margin-left: 10px;
+}
+#header	a {
+	color:#FFFFFF;
+	background-color:#000099;
 	text-decoration: none;
-	padding-right: 20px;
+	font-weight: bold;
+		padding-left: 10px;
+	padding-right: 10px; 
 }
 
-#footer	a:hover {
-	color:#33587D;
-	background-color:#EEEEEE;
-	font-weight: normal;
+#header	a:hover {
+	color:#00FF00;
+	background-color:#000099;
+	font-weight: bold;
 	text-decoration: underline;
 }
 
+#header tr {
+	padding-left: 10px;
+	padding-right: 10px; 
+}
+#header table {
+	padding-top:20px;
+}
+
 #copyrightdesign {
-	color:#000000;
+	color:#00FF00;
 	background-color:#FFFFFF;
 	padding:5px 20px 5px 0px;
 	text-align: center;
-}
-
-#images_hz {
-	width: auto;
-	height: auto;
-	overflow: hidden
-}
-#images_hz img
-{
-	display: inline;
-	margin: 0 10px;
 }
