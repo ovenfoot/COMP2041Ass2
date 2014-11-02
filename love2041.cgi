@@ -198,6 +198,18 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 		}
 		#debugPrint("Whassup");
 	}
+	elsif($query eq "editPrefrences")
+	{
+		if (defined param('new_preferences'))
+		{
+			createNewPreferences(param('username'));
+			generateUserHtml(param('username'));
+		}
+		else
+		{
+			generateEditPreferencesHTML($globalSessionData{'current_user'});
+		}
+	}
 	elsif($query eq "newUser")
 	{
 		#navigating to newuser whilst logged in will logout hte current person
@@ -744,7 +756,7 @@ sub sendMail
 	
 }
 
-#password recovery page. Finds the password and sends it in plaintext
+#password recovery page. Finds the password and sends it in plaintext via email
 sub generatePasswordRecoveryHTML
 {
 		
@@ -754,7 +766,7 @@ sub generatePasswordRecoveryHTML
 		beginPage("nosearch");
 		if (defined $udata{"email"})
 		{
-			#test
+			#email parameters
 			my $to = $udata{"email"};
 			my $from = 'tngu211@cse.unsw.edu.au';
 			my $subject = 'Love Doge Password Reset';
@@ -762,14 +774,14 @@ sub generatePasswordRecoveryHTML
 			 
 			open(MAIL, "|/usr/sbin/sendmail -t");
 			 
-			# Email Header
+			#mail data to send
 			print MAIL "To: $to\n";
 			print MAIL "From: $from\n";
 			print MAIL "Subject: $subject\n\n";
-			# Email Body
 			print MAIL $message;
 
 			close(MAIL);
+
 			print h3 "Recovery Email Sent to $to\n";
 			
 			print h2;
@@ -810,7 +822,118 @@ sub generatePasswordRecoveryHTML
 	}
 }
 
+#edit preferences
+#takes in username as first argument
+#same as create new preferences.txt
+sub generateEditPreferencesHTML
+{
+	my ($username) = @_;
+	my %u1Pref = generateUserData($username, 'preferences');
+	my $age_min = "";
+	my $age_max = "";
+	my $height_max = "";
+	my $height_min = "";
+	my $weight_max = "";
+	my $weight_min = "";
+	
+	my $hair_colours = join("\n", split (/\|/,$u1Pref{'hair_colours'}));	
+	beginPage();
+	
+	#get ranges
+	if ($u1Pref{"age"} =~ 
+		/min\:\|\s*([\w\d\.]+)\|\s*max\:\s*\|\s*([\w\d\.]+)/)
+	{
+		$age_min = $1;
+		$age_max = $2;
+		
+	}
 
+	if ($u1Pref{"weight"} =~ 
+		/min\:\|\s*([\d]+)kg\|\s*max\:\s*\|\s*([\d]+)kg/)
+	{
+		$weight_min = $1;
+		$weight_max = $2;	
+	}
+	
+	if ($u1Pref{"height"} =~ 
+		/min\:\|\s*([\d\.]+)m\|\s*max\:\s*\|\s*([\d\.]+)m/)
+	{
+		$height_min = $1;
+		$height_max = $2;	
+	}
+
+
+	print h1 "Who are your looking for?";
+	
+	#gigantic form...
+	print start_form;
+	
+	print "<table>\n";
+
+	print "<tr>";
+	print td 'Age:';
+	print td p "min", (textfield(-name=>'age_min',
+						-value=>"$age_min")),
+		p "max", textfield(-name=>'age_max',
+						-value=>"$age_min");
+	print "</tr>\n";
+	
+	print "<tr>";
+	print td 'Height:';
+	print td p "min", (textfield(-name=>'height_min',
+						-value=>"$height_min")), "m",
+		p "max", textfield(-name=>'height_max',
+						-value=>"$height_max"), "m";
+	print "</tr>\n";
+	
+	print "<tr>";
+	print td 'Weight:';
+	print td p "min", (textfield(-name=>'weight_min',
+						-value=>"$weight_min")), "kg",
+		p "max", textfield(-name=>'weight_max',
+						-value=>"$weight_max"), "kg";
+	print "</tr>\n";
+
+	
+	print "<tr>";
+	print "<td valign = 'top'>", 'Hair Colours:';
+	print "</td>";
+	print td (textarea(-name=>'hair_colours', 
+						-rows=>"10",
+						-cols=>"25",
+						-value=>$hair_colours));
+	print "</tr>\n";
+	
+	print "<tr>";
+	print td "Gender";
+	print '<td> <select name = "gender">', "\n";
+	print option("$u1Pref{'gender'}");
+	print option ("");
+	print option ("Male");
+	print option ("Female");
+	print option ("Other");
+	print "</select> </td>";
+	
+	#pass through all the required variables
+	param('username', $username);
+	print hidden('username');
+		
+	print "<tr> <td></td> <td>";
+	print center submit(-name=>'new_preferences',
+						-value=>'Submit');
+	print "</td> </tr>\n";
+	print "</table>\n";
+
+	print end_form;
+	
+	endPage();
+	
+}
+
+#edit profile.
+#takes in username as first argument
+#essentially the same as create profile except that
+#the fields come pre-filled
 sub generateEditProfileHTML
 {
 	my ($username) = @_;
@@ -824,15 +947,11 @@ sub generateEditProfileHTML
 	
 	beginPage();
 
-	#printAllParams();
-
 	print h1 "Hello, $username!";
 	print h2 "Tell us a bit about yourself!";
 	print h3 "(Feel free to leave out the more private details!)";
-	#print p param('height');
 
 	print start_form;
-	
 	
 	print p "Sum yourself up in a few words";
 	print p (textarea(-name=>'personal_text', 
@@ -1003,8 +1122,10 @@ sub generateNewUserProfileHTML
 	my $email = "";
 	my @allUsers = ();
 
+	
 	if (!defined param('new_username'))
 	{
+		#on first pass, new login page to specify uname, email and pass
 		printNewLogin();
 	}
 	else
@@ -1022,7 +1143,7 @@ sub generateNewUserProfileHTML
 			return;
 		}
 
-		#check that password field is nonempty
+		#check that password field is non-empty
 		if($password eq "")
 		{
 			printNewLogin("password can't be empty!");
@@ -1037,8 +1158,6 @@ sub generateNewUserProfileHTML
 		}
 
 		beginPage("nosearch");
-
-		#printAllParams();
 
 		print h1 "Hello, $username!";
 		print h2 "Tell us a bit about yourself!";
@@ -1174,8 +1293,6 @@ sub generateNewUserProfileHTML
 		print hidden('email');
 		print hidden('new_username');
 		print hidden('email');
-		#print hidden('new_profile');
-
 
 		print "<tr> <td></td> <td>";
 		print center submit(-name=>'new_profile',
@@ -1185,11 +1302,7 @@ sub generateNewUserProfileHTML
 
 		print end_form;
 
-		#print p param('hair_color');
-		
-		
-		
-		
+		#state change flag 
 		print hidden('new_profile');
 		
 
@@ -1199,7 +1312,8 @@ sub generateNewUserProfileHTML
 }
 
 
-#new user creation page
+#new user preference creation page
+#big form for users to specify their dating preferences
 sub generateNewUserPreferencesHTML
 {
 	
@@ -1215,6 +1329,7 @@ sub generateNewUserPreferencesHTML
 
 	print h1 "And now, who are your looking for?";
 	
+	#gigantic form...
 	print start_form;
 	
 	print "<table>\n";
@@ -1255,6 +1370,7 @@ sub generateNewUserPreferencesHTML
 	print option ("Other");
 	print "</select> </td>";
 	
+	#pass through all the required variables
 	print hidden('new_username');
 		
 	print "<tr> <td></td> <td>";
@@ -1266,8 +1382,6 @@ sub generateNewUserPreferencesHTML
 	print end_form;
 	
 	endPage();
-
-
 }
 
 
@@ -1295,6 +1409,7 @@ sub generateLoginPage
         submit('Login'),
         end_form;
 		
+	#account creation and lost password links
     print h2;
     printLink("$homeUrl?|newUser", "Don't have an account? Create one here!");
     print "</h2>\n";
@@ -1407,9 +1522,6 @@ sub generateNUserList
 	#update session data about the last page person was browsing
 	$globalSessionData{"last_profile_browse"} = $page;
 
-	#print 'find my matches button'
-	#print "<br>  </br>";
-
 	print h2;
 	printLink($homeUrl."?myMatches", "Find my matches!");
 	print "</h2>";
@@ -1428,12 +1540,9 @@ sub generateUserHtml
 	my %udata = ();
 	my @otherPhotos = ();
 	my $lastURL = ();
-	#print header;
 
 	beginPage();
-
 	warningsToBrowser(1);
-
 	%udata = generateUserData($uname);
 	if (! $udata{"found"})
 	{
@@ -1452,6 +1561,10 @@ sub generateUserHtml
 		print h2;
 		printLink($homeUrl."?|editProfile", "Edit Profile");
 		print "</h2>";
+		
+		print h2;
+		printLink($homeUrl."?|editPrefrences", "Edit Preferences");
+		print "</h2>";
 	}
 	else
 	{
@@ -1468,6 +1581,7 @@ sub generateUserHtml
 		print p "<img src=$imagePath width = 250><p>\n";	
 	}
 	
+	#print personal text
 	if(defined $udata{"personal_text"})
 	{
 		print p $udata{"personal_text"};
@@ -1482,7 +1596,6 @@ sub generateUserHtml
 	
 	foreach my $field (sort keys %udata)
 	{
-		
 		if(!exists ($privateFields{$field}))
 		{
 			#check if the field is not private, print it
@@ -1532,9 +1645,6 @@ sub generateUserHtml
 		}
 		print "</td>\n";
 	}
-		
-	
-
 	print '</table>';
 	#extract photo file names and embed them in the page
 	if($udata{"otherPhotos"} ne "")
@@ -1551,11 +1661,6 @@ sub generateUserHtml
 		print p;
 		print '</div>';
 	}
-	
-	#if you are viewing your own profile, add an option to edit it
-	#chomp $globalSessionData{'current_user'};
-	
-	
 	endPage();
 
 }
@@ -1578,7 +1683,6 @@ sub generateSearchResultsHTML
 	}
 	else
 	{
-
 		print p "You searched for \"$searchString\"";
 
 		#print each of the results with the display pic as an unordered list
@@ -1595,7 +1699,6 @@ sub generateSearchResultsHTML
 
 
 		}
-		#print '</div>';
 	}	
 	endPage();
 
@@ -1613,11 +1716,7 @@ sub generateNMatches
 
 	chomp $userIn;
 
-
 	beginPage();
-
-
-
 	foreach my $user (@allUsers)
 	{
 		chomp $user;
@@ -1638,10 +1737,6 @@ sub generateNMatches
 	foreach my $user (sort { $matchScores{$userIn}{$a} <=> $matchScores{$userIn}{$b} } keys %{$matchScores{$userIn}})
 	{
 		push @sortedMatches, $user;
-		# my $userURL = $homeUrl."?$user";
-		# print "<li>";
-		# printLink($userURL, "$user: $matchScores{$userIn}{$user}");
-		# print "</li>\n"
 	}
 
 	for (my $i=0; $i<$numMatches; $i++)
@@ -1745,32 +1840,14 @@ sub createNewProfile
 						$bytesread = 0;
 					}
 					close PROFILEIMAGE;
-
 				}
 				print NEWUSERPROFILE "\t$value\n";
 			}
-
 		}
-		else
-		{
-			#debugPrint("$field has no value!");
-		}
-		#@values = split(/\n/, param($field));
-		#debugPrint ("$field\n:");
-		#debugPrint ($#values);
-		#debugPrint (@values);
-
-
 	}
 
 	close NEWUSERPROFILE;
 	chmod 0755, $uprofileFile;
-
-	#$globalSessionData{"current_user"} = $username;
-	#$globalSessionData{"authenticated"} = 0;
-
-	#updateSession();
-
 }
 
 
@@ -1975,7 +2052,6 @@ sub matchUsers
 	#calculate special cases for matching first
 	
 	#gender mismatch is a giant penalty. leave score untouched otherwise
-
 	if (defined $u1Pref{"gender"} && defined $u2Data{"gender"})
 	{
 		
@@ -2072,8 +2148,8 @@ sub matchUsers
 	#use regex to see if u2's hair colour is in u1's preference list
 	if (defined $u2Data{"hair_colour"} && defined $u1Pref{"hair_colours"})
 	{
-		my $u2Hair = $u2Data{"hair_colour"};
-		if($u1Pref{"hair_colours"} =~ /$u2Hair/ )
+		my $u2Hair = lc$u2Data{"hair_colour"};
+		if(lc$u1Pref{"hair_colours"} =~ /$u2Hair/ )
 		{
 			$score /=2;
 		}
@@ -2099,7 +2175,7 @@ sub matchUsers
 			#@matchedHobbies, grep {/$hobby/} (<u2Profile>);
 			foreach my $u1hobby (@u1hobbies)
 			{
-				push @matchedHobbies, grep{/$u1hobby/} $u2Data{$field};
+				push @matchedHobbies, grep{/$u1hobby/i} $u2Data{$field};
 			}
 			#debugPrint(@u1hobbies);
 		}
@@ -2111,11 +2187,6 @@ sub matchUsers
 	#weight each matched hobby as 2
 
 	$score /= (1 + ($#matchedHobbies + 1)*2);
-
-	#debugPrint($u2ProfileFile);
-	#debugPrint("$user1 $user2");
-	#debugPrint(@matchedHobbies);
-	#debugPrint($#matchedHobbies);
 	
 	if (!(defined $oldScore))
 	{
