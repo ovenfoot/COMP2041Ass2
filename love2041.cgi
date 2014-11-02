@@ -11,7 +11,7 @@ use Time::Local;
 
 
 #TODO2: Multiple image upload
-#TODO3: EDIT PROFILE
+
 #######################################################################
 #		GLOBAL VAR INITIALISATION
 #######################################################################
@@ -167,6 +167,7 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 	elsif($query eq "logout")
 	{
 		logout();
+		generateLoginPage();
 	}
 	elsif($query eq "matchtest")
 	{
@@ -205,6 +206,25 @@ elsif ($ENV{'QUERY_STRING'} =~ /^[\|].*/ )
 		updateSession();
 		generateNewUserProfileHTML();
 
+	}
+	elsif($query =~ /message\=(.+)/)
+	{
+		#send a message to a user
+		#if 'send_message' is defined it means there is data to send
+		if (defined param('send_message'))
+		{	
+			sendMail (param('from_user'), param('to_user'), param('message_body'));
+		}
+		#otherwise generate a new message html
+		else
+		{
+			generateSendMessageHTML($1);
+		}
+	}
+	
+	else
+	{
+		debugPrint("THIS IS THE MOST BORING 404 PAGE EVER");
 	}
 }
 else
@@ -388,11 +408,12 @@ sub logout
 
 	unlink $sessionFile;
 	$globalSessionData{"authenticated"} = -1;
-	beginPage();
-		print h2 "logged out";
-	print p;
-	printLink($homeUrl, "Go home");
-	endPage();
+	
+	# beginPage();
+		# print h2 "logged out";
+	# print p;
+	# printLink($homeUrl, "Go home");
+	# endPage();
 
 
 }
@@ -654,6 +675,74 @@ sub printAllParams
 #######################################################################
 #		HTML SUBPAGE GENERATORS
 #######################################################################
+
+#page to allow users to send messages to each other via email
+sub generateSendMessageHTML
+{
+	my($toUser) = @_;
+	my $fromUser = $globalSessionData{'current_user'};
+	
+	beginPage();
+	print h1 "Send a message to $toUser";
+	
+	print start_form;
+	print td (textarea(-name=>'message_body', 
+						-rows=>"10",
+						-cols=>"50",
+						-value=>"HOLY CRAP I'M SO IN LOVE WITH YOU"));
+	
+	
+	param("from_user", $fromUser);
+	param("to_user", $toUser);
+	
+	print hidden("from_user");
+	print hidden("to_user");
+	
+	print p submit (-value=>"Send Message!", -name=>"send_message");
+	
+	print end_form;
+	
+	endPage();
+}
+
+#send mail. First argument is from, second argument is to, 3rd arg is message
+sub sendMail
+{
+	my ($fromUser, $toUser, $message) = @_;
+	my %udata = generateUserData($toUser, "profile");
+	beginPage("nosearch");
+	if (defined $udata{"email"})
+	{
+		#test
+		my $to = $udata{"email"};
+		my $from = 'tngu211@cse.unsw.edu.au';
+		my $subject = "Love doge message delivery from $fromUser";
+		my $message = "$fromUser wants to send a message to you:\n\n".$message.
+				"\n\nMaybe you should send them a message back!";
+		
+		open(MAIL, "|/usr/sbin/sendmail -t");
+		 
+		# Email Header
+		print MAIL "To: $to\n";
+		print MAIL "From: $from\n";
+		print MAIL "Subject: $subject\n\n";
+		# Email Body
+		print MAIL $message;
+		
+		print p "Message Sent!"
+	}
+	else
+	{
+		print p "$toUser doesn't have an email address, sorry :(";
+	}
+	
+	print h2;
+	printLink($homeUrl."?".$toUser, "Back to $toUser\'s profile");
+	print "</h2>";
+	endPage();
+
+	
+}
 
 #password recovery page. Finds the password and sends it in plaintext
 sub generatePasswordRecoveryHTML
@@ -1355,15 +1444,22 @@ sub generateUserHtml
 
 	print h1 "$uname";
 
+	#if the user is the current user, let them edit profile
 	if ($globalSessionData{'current_user'} eq $uname)
 	{
 		print h2;
 		printLink($homeUrl."?|editProfile", "Edit Profile");
 		print "</h2>";
 	}
+	else
+	{
+		#message the user
+		print h2;
+		printLink($homeUrl."?|message=$uname", "Message This Person!");
+		print "</h2>";
+	}
 	
 	#print profile picture from path stored in hash
-
 	if (defined $udata{"profileImage"})
 	{	
 		$imagePath = $udata{"profileImage"};
